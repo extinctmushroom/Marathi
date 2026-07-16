@@ -99,3 +99,7 @@ Requires Node 18+.
 ## License
 
 Released under the [MIT License](LICENSE) — use it, fork it, teach with it.
+
+## Acknowledgements
+
+Co-authored with **Claude** ([Anthropic](https://www.anthropic.com)) — a collaborator on the curriculum design, the spaced-repetition and quiz engines, and the interface. Every feature was tested end-to-end before release.
