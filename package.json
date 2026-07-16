@@ -1,0 +1,35 @@
+{
+  "name": "marathi-shika",
+  "private": true,
+  "version": "1.0.0",
+  "description": "मराठी शिका — a complete interactive Marathi course, from Devanagari script to real conversation.",
+  "license": "MIT",
+  "type": "module",
+  "keywords": [
+    "marathi",
+    "devanagari",
+    "language-learning",
+    "spaced-repetition",
+    "flashcards",
+    "react",
+    "vite"
+  ],
+  "homepage": "https://extinctmushroom.github.io/Marathi/",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/extinctmushroom/Marathi.git"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.3.4",
+    "vite": "^6.0.7"
+  }
+}

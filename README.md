@@ -1,0 +1,101 @@
+<div align="center">
+
+# मराठी शिका · Learn Marathi
+
+**A complete, self-contained web course for learning Marathi — from the Devanagari script to real conversation.**
+
+[![Live demo](https://img.shields.io/badge/live_demo-मराठी_शिका-8E2A5C?style=for-the-badge)](https://extinctmushroom.github.io/Marathi/)
+&nbsp;
+![React](https://img.shields.io/badge/React-18-20232a?style=for-the-badge&logo=react)
+![Vite](https://img.shields.io/badge/Vite-6-646CFF?style=for-the-badge&logo=vite&logoColor=white)
+![License](https://img.shields.io/badge/license-MIT-3E6B4F?style=for-the-badge)
+
+<img src="docs/home.png" alt="मराठी शिका home screen — course overview with progress, streak, and lesson list" width="820">
+
+</div>
+
+---
+
+Marathi is the language of ~83 million people — of Mumbai and Pune, of the saint-poets, of street-corner वडा पाव. Most learning resources treat it as an afterthought to Hindi. **मराठी शिका** is built for Marathi on its own terms: the retroflex ळ, the *dnya* of ज्ञ, the breathy म्ह/न्ह clusters, three grammatical genders, and the object-agreeing past tense that trips up every newcomer.
+
+It runs entirely in the browser. No accounts, no backend, no tracking — progress lives in `localStorage`, and once the page has loaded it works offline.
+
+## The curriculum
+
+**7 levels · 43 lessons · 587 items**, sequenced so each lesson builds on the last:
+
+| Level | Focus |
+| --- | --- |
+| **1 · लिपी The Script** | Vowels, consonants, vowel signs (*mātrā*), joined letters, reading practice, numbers |
+| **2 · पाया Foundations** | Greetings, pronouns & "to be", question words, first sentences, essential verbs |
+| **3 · व्याकरण Grammar** | Three genders, present/past/future tense, negation, commands, postpositions |
+| **4 · शब्दसंपदा Vocabulary** | Family, food, body & health, animals & nature, around town, time, colors, big numbers |
+| **5 · संभाषण Conversation** | The market, getting around, eating out, polite speech, small talk, emergencies |
+| **6 · प्रगत Advanced** | Modals, compound verbs, conditionals, connectors, festivals & culture, proverbs |
+| **7 · प्रभुत्व Mastery** | Conversational particles, idioms, real-world signs, and your first story in Marathi |
+
+## How it teaches
+
+Every lesson moves through three stages:
+
+<div align="center">
+<img src="docs/lesson.png" alt="Lesson learn view" width="47%">
+&nbsp;&nbsp;
+<img src="docs/quiz.png" alt="Quiz view" width="47%">
+</div>
+
+1. **Learn** — each item shows Devanagari, transliteration, meaning, a usage note, and tap-to-hear audio.
+2. **Flashcards** — flip in either direction (Marathi → English or the reverse), shuffle, fully keyboard-driven.
+3. **Quiz** — a mix of formats: multiple choice both ways, **listening** questions (hear it, pick what you heard), and **typing** questions where transliteration is matched diacritic-insensitively, so `pani` is accepted for `pāṇī`. Score 70%+ to complete the lesson.
+
+Passing a quiz adds that lesson's words to a global **उजळणी review deck** backed by a lightweight spaced-repetition scheduler. Rate each card *Again / Hard / Good / Easy*; intervals grow so words resurface just before you'd forget them.
+
+Rounding it out:
+
+- 🔥 **Daily streak** tracking to build the habit
+- 🔍 **Course-wide search** by Marathi, transliteration, or English — effectively a built-in dictionary
+- ▶ **Continue** button that always resumes at your next unfinished lesson
+- ♪ **Text-to-speech** on every item, using the device's Marathi voice with a Hindi fallback
+- ⌨️ **Keyboard shortcuts** throughout — space to flip, arrows to navigate, `1`–`4` to answer or grade
+- 📱 Responsive, accessible (focus-visible states, `prefers-reduced-motion`), and offline-capable once loaded
+
+## Technical highlights
+
+- **Data-driven core.** The entire course is plain data — one file per level, each item a `{ mr, tr, en, note? }` object. Every feature (flashcards, all three quiz formats, search, the review deck) is generated from it, so adding content never touches feature code.
+- **Custom spaced-repetition scheduler** (`src/lib/srs.js`) — a compact SM-2-style algorithm with four grades and growing intervals, kept intentionally small and dependency-free.
+- **Diacritic-insensitive matching** via Unicode NFD normalization, shared by both typed-answer grading and course search, so learners are never punished for skipping accent marks.
+- **Zero runtime dependencies** beyond React itself — no UI kit, no state library. State and a tiny view router live in `App.jsx`; styling is a hand-written CSS design system.
+- **Portable static build** (`base: "./"`) that runs from any host — GitHub Pages, Netlify, or a file server — and is deployed by a GitHub Actions workflow.
+
+## Project structure
+
+```
+src/
+  data/          one file per level — the entire curriculum as pure data
+  lib/           speech (TTS), storage, quiz builder, spaced-repetition scheduler
+  components/    Home, LessonView, Learn/Cards/Quiz tabs, ReviewView, shared UI
+  App.jsx        state, view routing, and progress persistence
+  styles.css     the CSS design system (paper / magenta / gold palette)
+```
+
+## Getting started
+
+```bash
+npm install
+npm run dev       # start the dev server
+npm run build     # production build → dist/
+npm run preview   # serve the production build locally
+```
+
+Requires Node 18+.
+
+## Roadmap
+
+- Handwriting practice for Devanagari (stroke-order tracing)
+- Recorded native audio to replace synthesized speech
+- Dialogue lessons with role-play
+- Progress export / import
+
+## License
+
+Released under the [MIT License](LICENSE) — use it, fork it, teach with it.
