@@ -9,7 +9,7 @@ import { gradeRecord, newRecord } from "./lib/srs.js";
 import {
   clearStore,
   downloadStore,
-  EMPTY_STORE,
+  emptyStore,
   loadStore,
   parseStore,
   saveStore,
@@ -101,7 +101,7 @@ export default function App() {
 
   const resetAll = () => {
     clearStore();
-    setStore(structuredClone(EMPTY_STORE));
+    setStore(emptyStore());
     setView({ name: "home" });
     notify("Progress cleared.");
   };

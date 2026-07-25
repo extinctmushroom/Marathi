@@ -8,10 +8,17 @@ export const EMPTY_STORE = {
   meta: { lastStudy: null, streak: 0, best: 0 },
 };
 
+// Deliberately not structuredClone(): that's missing on older browsers
+// (pre-15.4 Safari especially), and this runs before first paint — a
+// throw here would blank the whole app.
+export function emptyStore() {
+  return { lessons: {}, srs: {}, meta: { ...EMPTY_STORE.meta } };
+}
+
 export function loadStore() {
   try {
     const raw = window.localStorage.getItem(KEY);
-    if (!raw) return structuredClone(EMPTY_STORE);
+    if (!raw) return emptyStore();
     const parsed = JSON.parse(raw);
     return {
       lessons: parsed.lessons || {},
@@ -19,7 +26,8 @@ export function loadStore() {
       meta: { ...EMPTY_STORE.meta, ...(parsed.meta || {}) },
     };
   } catch {
-    return structuredClone(EMPTY_STORE);
+    // Private-mode storage restrictions land here too.
+    return emptyStore();
   }
 }
 

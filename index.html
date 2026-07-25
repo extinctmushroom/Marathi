@@ -71,7 +71,29 @@
     </script>
   </head>
   <body>
-    <div id="root"></div>
+    <!-- Replaced by React on mount. If this text is still visible, the app
+         bundle never executed (blocked, 404, or an unsupported browser). -->
+    <div id="root">
+      <div
+        id="boot"
+        style="
+          font-family: Karla, system-ui, sans-serif;
+          max-width: 34rem;
+          margin: 18vh auto 0;
+          padding: 0 1.5rem;
+          text-align: center;
+          color: #6b5573;
+        "
+      >
+        <div style="font-size: 2.5rem; color: #8e2a5c">मराठी शिका</div>
+        <p style="margin-top: 0.75rem">Loading the course…</p>
+        <noscript>
+          <p style="color: #a53939">
+            This course needs JavaScript enabled to run.
+          </p>
+        </noscript>
+      </div>
+    </div>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>
