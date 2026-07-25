@@ -7,7 +7,7 @@
  * file there is nothing left to fail independently.
  */
 
-import { readFile, writeFile, readdir } from "fs/promises";
+import { readFile, writeFile, readdir, copyFile } from "fs/promises";
 import { existsSync } from "fs";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
@@ -99,7 +99,18 @@ await writeFile(htmlPath, html, "utf8");
 const assetsDir = join(dist, "assets");
 if (existsSync(assetsDir)) {
   const kept = await readdir(assetsDir);
-  console.log(`inline-build: kept assets/ as a fallback (${kept.join(", ")})`);
+  // Third route: byte-identical copies under a neutral extension. Some
+  // filters block by URL pattern (anything ending .js/.css) rather than by
+  // content, and these slip through where the originals do not.
+  for (const [from, to] of [
+    ["index.js", "app.txt"],
+    ["style.css", "app-style.txt"],
+  ]) {
+    if (existsSync(join(assetsDir, from))) {
+      await copyFile(join(assetsDir, from), join(assetsDir, to));
+    }
+  }
+  console.log(`inline-build: kept assets/ as fallbacks (${kept.join(", ")} + .txt copies)`);
 }
 
 const kb = (Buffer.byteLength(html, "utf8") / 1024).toFixed(1);

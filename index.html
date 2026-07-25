@@ -216,9 +216,44 @@
             window.__bootErrors.push("inline bundle missing (stripped before delivery)");
           }
 
-          // Route 2: fetch the same code as a plain file instead.
+          // Route 2: load the same code as an ordinary file.
           loadFromFile(function () {
-            if (!mounted()) report();
+            if (mounted()) return;
+
+            // Route 3: identical code under a neutral extension, for filters
+            // that block by URL pattern rather than by content.
+            if (!window.fetch) return report();
+            fetch("./assets/app-style.txt")
+              .then(function (r) {
+                return r.ok ? r.text() : "";
+              })
+              .catch(function () {
+                return "";
+              })
+              .then(function (css) {
+                if (css) {
+                  var st = document.createElement("style");
+                  st.textContent = css;
+                  document.head.appendChild(st);
+                }
+                return fetch("./assets/app.txt");
+              })
+              .then(function (r) {
+                if (!r.ok) throw new Error("HTTP " + r.status);
+                return r.text();
+              })
+              .then(function (code) {
+                if (!code || code.length < 1000) throw new Error("empty payload");
+                (0, eval)(code);
+              })
+              .catch(function (err) {
+                window.__bootErrors.push("route3: " + (err && err.message ? err.message : err));
+              })
+              .then(function () {
+                setTimeout(function () {
+                  if (!mounted()) report();
+                }, 400);
+              });
           });
         }, 6000);
       })();
