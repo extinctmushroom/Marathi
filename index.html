@@ -95,5 +95,37 @@
       </div>
     </div>
     <script type="module" src="/src/main.jsx"></script>
+
+    <!-- Browser can't run ES modules at all. -->
+    <script nomodule>
+      (function () {
+        var b = document.getElementById("boot");
+        if (b) {
+          b.innerHTML =
+            '<div style="font-size:2.5rem;color:#8e2a5c">मराठी शिका</div>' +
+            '<p style="color:#a53939">This browser is too old to run the course — it does not support JavaScript modules. Please try a current version of Safari, Chrome, Firefox, or Edge.</p>';
+        }
+      })();
+    </script>
+
+    <!-- If React still hasn't mounted after a few seconds, the bundle was
+         blocked or never arrived. Say so instead of spinning forever. -->
+    <script>
+      (function () {
+        setTimeout(function () {
+          var b = document.getElementById("boot");
+          if (!b || !document.body.contains(b)) return; // app mounted — nothing to do
+          var p = b.getElementsByTagName("p")[0];
+          if (!p) return;
+          p.innerHTML =
+            "The course didn't finish loading.<br><br>" +
+            "This is usually a browser shield, ad blocker, or extension blocking the script — " +
+            "try lowering shields for this site, or open it in another browser. " +
+            "A dropped connection mid-load can do it too, so a reload is worth a shot.";
+          p.style.color = "#a53939";
+          p.style.lineHeight = "1.5";
+        }, 6000);
+      })();
+    </script>
   </body>
 </html>
