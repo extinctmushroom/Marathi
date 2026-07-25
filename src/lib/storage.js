@@ -39,6 +39,65 @@ export function clearStore() {
   }
 }
 
+/* ---------- backup / restore ----------
+   Progress lives only on this device, so give people a way to carry it
+   to another browser — or back after clearing site data. */
+
+export function serializeStore(store) {
+  return JSON.stringify(
+    {
+      app: "marathi-shika",
+      formatVersion: 1,
+      exportedAt: new Date().toISOString(),
+      lessons: store.lessons,
+      srs: store.srs,
+      meta: store.meta,
+    },
+    null,
+    2
+  );
+}
+
+// Throws a human-readable Error if the file isn't a progress backup.
+export function parseStore(text) {
+  let parsed;
+  try {
+    parsed = JSON.parse(text);
+  } catch {
+    throw new Error("That file isn't valid JSON.");
+  }
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+    throw new Error("That doesn't look like a progress file.");
+  }
+  const { lessons, srs, meta } = parsed;
+  const isObj = (v) => v && typeof v === "object" && !Array.isArray(v);
+  if (!isObj(lessons) || !isObj(srs)) {
+    throw new Error("That doesn't look like a मराठी शिका progress file.");
+  }
+  return {
+    lessons,
+    srs,
+    meta: { ...EMPTY_STORE.meta, ...(isObj(meta) ? meta : {}) },
+  };
+}
+
+export function downloadStore(store) {
+  const blob = new Blob([serializeStore(store)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  const d = new Date();
+  const stamp = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(
+    d.getDate()
+  ).padStart(2, "0")}`;
+  a.href = url;
+  a.download = `marathi-shika-progress-${stamp}.json`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  // Give the download a tick to start before revoking.
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
 function todayStr() {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(

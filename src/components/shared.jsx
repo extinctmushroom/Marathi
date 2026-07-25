@@ -34,3 +34,17 @@ export function ProgressBar({ pct }) {
     </div>
   );
 }
+
+export function ThemeToggle({ theme, onToggle }) {
+  const dark = theme === "dark";
+  return (
+    <button
+      className="theme-toggle"
+      onClick={onToggle}
+      aria-label={dark ? "Switch to light theme" : "Switch to dark theme"}
+      title={dark ? "Light mode" : "Dark mode"}
+    >
+      {dark ? "☀" : "☾"}
+    </button>
+  );
+}

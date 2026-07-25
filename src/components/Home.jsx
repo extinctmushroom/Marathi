@@ -1,8 +1,8 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { ALL_LEVELS, ALL_LESSONS, TOTAL_ITEMS } from "../data/index.js";
 import { dueKeys } from "../lib/srs.js";
 import { streakAlive } from "../lib/storage.js";
-import { Shirorekha } from "./shared.jsx";
+import { Shirorekha, ThemeToggle } from "./shared.jsx";
 
 // Fold diacritics so "pani" finds "pāṇī" and "doka" finds "ḍokã".
 function fold(s) {
@@ -31,7 +31,11 @@ function SearchResults({ query, openLesson }) {
   if (!q) return null;
   return (
     <div style={{ display: "grid", gap: 8, marginBottom: 28 }}>
-      {hits.length === 0 && <p className="muted">No matches for “{query}” — try Marathi, transliteration, or English.</p>}
+      {hits.length === 0 && (
+        <p className="muted">
+          No matches for “{query}” — try Marathi, transliteration, or English.
+        </p>
+      )}
       {hits.map(({ it, lesson }, i) => (
         <button key={i} className="search-hit" onClick={() => openLesson(lesson.id)}>
           <span className="mr">{it.mr}</span>
@@ -44,8 +48,18 @@ function SearchResults({ query, openLesson }) {
   );
 }
 
-export default function Home({ store, openLesson, openReview, resetAll }) {
+export default function Home({
+  store,
+  openLesson,
+  openReview,
+  resetAll,
+  exportProgress,
+  importProgress,
+  theme,
+  onToggleTheme,
+}) {
   const [query, setQuery] = useState("");
+  const fileInput = useRef(null);
   const doneCount = ALL_LESSONS.filter((l) => store.lessons[l.id]?.done).length;
   const pct = Math.round((doneCount / ALL_LESSONS.length) * 100);
   const due = dueKeys(store.srs).length;
@@ -57,7 +71,10 @@ export default function Home({ store, openLesson, openReview, resetAll }) {
     <div>
       <header className="hero">
         <div className="hero-inner">
-          <div className="eyebrow">A complete course · script to conversation</div>
+          <div className="header-top">
+            <div className="eyebrow">A complete course · script to conversation</div>
+            <ThemeToggle theme={theme} onToggle={onToggleTheme} />
+          </div>
           <div className="shirorekha">
             <h1>मराठी शिका</h1>
           </div>
@@ -115,55 +132,89 @@ export default function Home({ store, openLesson, openReview, resetAll }) {
         <SearchResults query={query} openLesson={openLesson} />
 
         {!query.trim() &&
-          ALL_LEVELS.map((level) => (
-            <section key={level.id} style={{ marginBottom: 36 }}>
-              <div className="level-head">
-                <Shirorekha size={28}>{level.mr}</Shirorekha>
-                <span className="level-tag">{level.en}</span>
-              </div>
-              <p className="level-desc">{level.desc}</p>
-              <div style={{ display: "grid", gap: 10 }}>
-                {level.lessons.map((lesson) => {
-                  const p = store.lessons[lesson.id];
-                  const done = p?.done;
-                  return (
-                    <button
-                      key={lesson.id}
-                      onClick={() => openLesson(lesson.id)}
-                      className={`lesson-row${done ? " done" : ""}`}
-                    >
-                      <span className="lesson-check">{done ? "✓" : ""}</span>
-                      <span style={{ flexGrow: 1 }}>
-                        <span className="lesson-title">{lesson.title}</span>
-                        <span className="lesson-sub">
-                          {lesson.items.length} items
-                          {p?.total ? ` · best quiz ${p.score}/${p.total}` : ""}
+          ALL_LEVELS.map((level) => {
+            const levelDone = level.lessons.filter((l) => store.lessons[l.id]?.done).length;
+            return (
+              <section key={level.id} style={{ marginBottom: 36 }}>
+                <div className="level-head">
+                  <Shirorekha size={28}>{level.mr}</Shirorekha>
+                  <span className="level-tag">{level.en}</span>
+                  <span className="level-progress">
+                    {levelDone}/{level.lessons.length}
+                  </span>
+                </div>
+                <p className="level-desc">{level.desc}</p>
+                <div style={{ display: "grid", gap: 10 }}>
+                  {level.lessons.map((lesson) => {
+                    const p = store.lessons[lesson.id];
+                    const done = p?.done;
+                    return (
+                      <button
+                        key={lesson.id}
+                        onClick={() => openLesson(lesson.id)}
+                        className={`lesson-row${done ? " done" : ""}`}
+                      >
+                        <span className="lesson-check">{done ? "✓" : ""}</span>
+                        <span style={{ flexGrow: 1 }}>
+                          <span className="lesson-title">{lesson.title}</span>
+                          <span className="lesson-sub">
+                            {lesson.items.length} items
+                            {p?.total ? ` · best quiz ${p.score}/${p.total}` : ""}
+                          </span>
                         </span>
-                      </span>
-                      <span className="lesson-arrow">›</span>
-                    </button>
-                  );
-                })}
-              </div>
-            </section>
-          ))}
+                        <span className="lesson-arrow">›</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </section>
+            );
+          })}
 
         {!query.trim() && (
-          <p className="footer-note">
-            Your progress is saved on this device. ♪ buttons read words aloud (voice quality
-            depends on your device's Marathi/Hindi voices).
-            <br />
-            <button
-              className="danger-link"
-              onClick={() => {
-                if (window.confirm("Erase all progress — lessons, quiz scores, and the review deck?")) {
-                  resetAll();
-                }
-              }}
-            >
-              Reset all progress
-            </button>
-          </p>
+          <>
+            <p className="footer-note">
+              Your progress is saved on this device. ♪ buttons read words aloud (voice quality
+              depends on your device's Marathi/Hindi voices).
+            </p>
+            <div className="io-row">
+              <button className="io-btn" onClick={exportProgress}>
+                ⭳ Back up progress
+              </button>
+              <button className="io-btn" onClick={() => fileInput.current?.click()}>
+                ⭱ Restore backup
+              </button>
+              <button
+                className="io-btn"
+                onClick={() => {
+                  if (
+                    window.confirm(
+                      "Erase all progress — lessons, quiz scores, and the review deck?"
+                    )
+                  ) {
+                    resetAll();
+                  }
+                }}
+              >
+                Reset
+              </button>
+              <input
+                ref={fileInput}
+                type="file"
+                accept="application/json,.json"
+                hidden
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  // Reset the input so re-picking the same file still fires.
+                  e.target.value = "";
+                  if (file) importProgress(file);
+                }}
+              />
+            </div>
+            <p className="offline-note">
+              Add to your home screen to study offline — no signup, no account.
+            </p>
+          </>
         )}
       </main>
     </div>

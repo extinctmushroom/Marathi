@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { buildQuiz, normalizeTr, PASS_RATIO } from "../lib/quiz.js";
-import { speak } from "../lib/speech.js";
+import { useKeyboard } from "../lib/useKeyboard.js";
 import { ProgressBar, SpeakButton } from "./shared.jsx";
 
 export default function QuizTab({ lesson, onFinish, best }) {
@@ -15,7 +15,11 @@ export default function QuizTab({ lesson, onFinish, best }) {
 
   useEffect(() => () => clearTimeout(timer.current), []);
 
+  const q = quiz ? quiz[qi] : null;
+  const answered = q ? (q.type === "type" ? typedResult !== null : picked !== null) : false;
+
   const start = () => {
+    clearTimeout(timer.current);
     setQuiz(buildQuiz(lesson));
     setQi(0);
     setPicked(null);
@@ -24,6 +28,55 @@ export default function QuizTab({ lesson, onFinish, best }) {
     setScore(0);
     setDone(false);
   };
+
+  const advance = (newScore, wasRight) => {
+    clearTimeout(timer.current);
+    timer.current = setTimeout(
+      () => {
+        if (qi + 1 >= quiz.length) {
+          setDone(true);
+          onFinish(newScore, quiz.length);
+        } else {
+          setQi(qi + 1);
+          setPicked(null);
+          setTyped("");
+          setTypedResult(null);
+        }
+      },
+      // Linger on wrong answers so the correction is readable.
+      wasRight ? 900 : 1800
+    );
+  };
+
+  const choose = (opt) => {
+    if (!q || answered) return;
+    setPicked(opt);
+    const right = opt === q.correct;
+    const newScore = right ? score + 1 : score;
+    setScore(newScore);
+    advance(newScore, right);
+  };
+
+  const submitTyped = () => {
+    if (!q || answered || !typed.trim()) return;
+    const right = q.answers.includes(normalizeTr(typed));
+    setTypedResult(right ? "right" : "wrong");
+    const newScore = right ? score + 1 : score;
+    setScore(newScore);
+    advance(newScore, right);
+  };
+
+  // 1–4 picks an answer, matching the review screen's grading keys.
+  useKeyboard((e) => {
+    if (!q || done || answered) return;
+    if (e.target.closest("input, textarea")) return;
+    if (q.type === "type") return;
+    const n = Number(e.key);
+    if (n >= 1 && n <= q.options.length) {
+      e.preventDefault();
+      choose(q.options[n - 1]);
+    }
+  });
 
   if (!quiz) {
     return (
@@ -49,7 +102,10 @@ export default function QuizTab({ lesson, onFinish, best }) {
     const passed = score / total >= PASS_RATIO;
     return (
       <div style={{ textAlign: "center", padding: "30px 0" }}>
-        <div className="mr" style={{ fontSize: 38, color: passed ? "var(--green)" : "var(--magenta)" }}>
+        <div
+          className="mr"
+          style={{ fontSize: 38, color: passed ? "var(--green)" : "var(--magenta)" }}
+        >
           {passed ? "शाब्बास!" : "पुन्हा प्रयत्न करा"}
         </div>
         <p className="muted" style={{ marginTop: 4 }}>
@@ -69,45 +125,6 @@ export default function QuizTab({ lesson, onFinish, best }) {
       </div>
     );
   }
-
-  const q = quiz[qi];
-  const answered = q.type === "type" ? typedResult !== null : picked !== null;
-
-  const advance = (newScore, wasRight) => {
-    clearTimeout(timer.current);
-    timer.current = setTimeout(
-      () => {
-        if (qi + 1 >= quiz.length) {
-          setDone(true);
-          onFinish(newScore, quiz.length);
-        } else {
-          setQi(qi + 1);
-          setPicked(null);
-          setTyped("");
-          setTypedResult(null);
-        }
-      },
-      wasRight ? 900 : 1800
-    );
-  };
-
-  const choose = (opt) => {
-    if (answered) return;
-    setPicked(opt);
-    const right = opt === q.correct;
-    const newScore = right ? score + 1 : score;
-    setScore(newScore);
-    advance(newScore, right);
-  };
-
-  const submitTyped = () => {
-    if (answered || !typed.trim()) return;
-    const right = q.answers.includes(normalizeTr(typed));
-    setTypedResult(right ? "right" : "wrong");
-    const newScore = right ? score + 1 : score;
-    setScore(newScore);
-    advance(newScore, right);
-  };
 
   const feedback =
     answered &&
@@ -245,6 +262,12 @@ export default function QuizTab({ lesson, onFinish, best }) {
         <div className="quiz-feedback">
           {q.item.mr} · {q.item.tr} — {q.item.en}
         </div>
+      )}
+
+      {q.type !== "type" && (
+        <p className="kbd-hint">
+          <kbd>1</kbd>–<kbd>{q.options.length}</kbd> to answer
+        </p>
       )}
     </div>
   );

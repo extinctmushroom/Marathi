@@ -3,6 +3,7 @@ import { ALL_LESSONS, findLevel } from "../data/index.js";
 import CardsTab from "./CardsTab.jsx";
 import LearnTab from "./LearnTab.jsx";
 import QuizTab from "./QuizTab.jsx";
+import { ThemeToggle } from "./shared.jsx";
 
 const TABS = [
   ["learn", "Learn"],
@@ -10,7 +11,15 @@ const TABS = [
   ["quiz", "Quiz"],
 ];
 
-export default function LessonView({ lessonId, store, finishQuiz, goHome, openLesson }) {
+export default function LessonView({
+  lessonId,
+  store,
+  finishQuiz,
+  goHome,
+  openLesson,
+  theme,
+  onToggleTheme,
+}) {
   const [tab, setTab] = useState("learn");
   const li = ALL_LESSONS.findIndex((l) => l.id === lessonId);
   const lesson = ALL_LESSONS[li];
@@ -28,9 +37,12 @@ export default function LessonView({ lessonId, store, finishQuiz, goHome, openLe
     <div>
       <header className="lesson-header">
         <div className="lesson-header-inner">
-          <button className="link-btn" onClick={goHome}>
-            ‹ All lessons
-          </button>
+          <div className="header-top">
+            <button className="link-btn" onClick={goHome}>
+              ‹ All lessons
+            </button>
+            <ThemeToggle theme={theme} onToggle={onToggleTheme} />
+          </div>
           <div className="lesson-level-tag">{level.en}</div>
           <div className="shirorekha">
             <h2>{lesson.title}</h2>

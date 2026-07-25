@@ -1,4 +1,5 @@
 :root {
+  color-scheme: light;
   --paper: #faf3e6;
   --ink: #33203b;
   --ink-soft: #6b5573;
@@ -15,6 +16,63 @@
   --tint: #f4e9d2;
   --serif: "Tiro Devanagari Marathi", serif;
   --sans: "Karla", sans-serif;
+
+  /* Semantic tokens — these are what the theme actually swaps.
+     Split by role so dark mode can lighten *text* without lightening
+     the deep plum *surfaces* (headers, flipped cards) that stay dark. */
+  --accent-strong: var(--magenta-deep); /* Devanagari headings & prompts */
+  --hero-from: #5e1b3d; /* header gradient start */
+  --hero-to: #8e2a5c; /* header gradient end */
+  --surface-deep: #5e1b3d; /* flipped flashcard face */
+  --on-accent: #fff; /* text on filled accent buttons */
+}
+
+/* Dark theme. Applied when the OS prefers dark and the user hasn't
+   chosen otherwise, or explicitly via data-theme on <html>. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --paper: #17101a;
+    --ink: #f2e6ea;
+    --ink-soft: #b49bac;
+    --magenta: #d96fa3;
+    --gold: #e0a94a;
+    --gold-soft: #f0ddb0;
+    --card: #221825;
+    --line: #3d2b3a;
+    --green: #6fae85;
+    --green-soft: #1e3527;
+    --red: #e07a7a;
+    --red-soft: #3a1f1f;
+    --tint: #2b1e2b;
+    --accent-strong: #e894bd;
+    --hero-from: #2a0e1d;
+    --hero-to: #56173a;
+    --surface-deep: #330f24;
+    --on-accent: #22101a;
+  }
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --paper: #17101a;
+  --ink: #f2e6ea;
+  --ink-soft: #b49bac;
+  --magenta: #d96fa3;
+  --gold: #e0a94a;
+  --gold-soft: #f0ddb0;
+  --card: #221825;
+  --line: #3d2b3a;
+  --green: #6fae85;
+  --green-soft: #1e3527;
+  --red: #e07a7a;
+  --red-soft: #3a1f1f;
+  --tint: #2b1e2b;
+  --accent-strong: #e894bd;
+  --hero-from: #2a0e1d;
+  --hero-to: #56173a;
+  --surface-deep: #330f24;
+  --on-accent: #22101a;
 }
 
 * {
@@ -52,7 +110,7 @@ input:focus-visible,
 /* ---------- header / hero ---------- */
 
 .hero {
-  background: linear-gradient(160deg, var(--magenta-deep), var(--magenta));
+  background: linear-gradient(160deg, var(--hero-from), var(--hero-to));
   color: #fff;
   padding: 40px 22px 30px;
 }
@@ -172,19 +230,19 @@ input:focus-visible,
 .btn-primary {
   background: var(--magenta);
   border-color: var(--magenta);
-  color: #fff;
+  color: var(--on-accent);
 }
 
 .btn-green {
   background: var(--green);
   border-color: var(--green);
-  color: #fff;
+  color: var(--on-accent);
 }
 
 .btn-gold {
   background: var(--gold);
   border-color: var(--gold);
-  color: #fff;
+  color: var(--on-accent);
 }
 
 .btn:disabled {
@@ -282,7 +340,7 @@ input:focus-visible,
   align-items: center;
   justify-content: center;
   border: 2px solid var(--line);
-  color: #fff;
+  color: var(--on-accent);
   font-size: 15px;
 }
 
@@ -346,7 +404,7 @@ input:focus-visible,
 
 .search-hit .mr {
   font-size: 20px;
-  color: var(--magenta-deep);
+  color: var(--accent-strong);
 }
 
 .search-hit .tr {
@@ -381,7 +439,7 @@ input:focus-visible,
 .item-mr {
   font-family: var(--serif);
   font-size: 24px;
-  color: var(--magenta-deep);
+  color: var(--accent-strong);
   line-height: 1.4;
 }
 
@@ -473,15 +531,15 @@ input:focus-visible,
 }
 
 .flashcard.flipped {
-  background: var(--magenta-deep);
-  border-color: var(--magenta-deep);
+  background: var(--surface-deep);
+  border-color: var(--surface-deep);
   color: #fff;
 }
 
 .flashcard-front-mr {
   font-family: var(--serif);
   font-size: clamp(28px, 6vw, 44px);
-  color: var(--magenta-deep);
+  color: var(--accent-strong);
   line-height: 1.35;
   text-align: center;
 }
@@ -489,7 +547,7 @@ input:focus-visible,
 .flashcard-front-en {
   font-size: clamp(20px, 4vw, 28px);
   font-weight: 700;
-  color: var(--magenta-deep);
+  color: var(--accent-strong);
   line-height: 1.4;
   text-align: center;
 }
@@ -588,7 +646,7 @@ input:focus-visible,
 }
 
 .quiz-prompt-main {
-  color: var(--magenta-deep);
+  color: var(--accent-strong);
   margin: 8px 0 2px;
   line-height: 1.35;
 }
@@ -709,7 +767,7 @@ input:focus-visible,
 /* ---------- lesson header & tabs ---------- */
 
 .lesson-header {
-  background: linear-gradient(160deg, var(--magenta-deep), var(--magenta));
+  background: linear-gradient(160deg, var(--hero-from), var(--hero-to));
   color: #fff;
   padding: 20px 22px 0;
 }
@@ -753,7 +811,7 @@ input:focus-visible,
 
 .tab-btn.active {
   background: var(--paper);
-  color: var(--magenta-deep);
+  color: var(--accent-strong);
 }
 
 .intro {
@@ -796,4 +854,90 @@ input:focus-visible,
   * {
     transition: none !important;
   }
+}
+
+/* ---------- theme toggle ---------- */
+
+.header-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.theme-toggle {
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  color: #fff;
+  border-radius: 999px;
+  width: 38px;
+  height: 38px;
+  font-size: 17px;
+  line-height: 1;
+  flex-shrink: 0;
+  transition: background 120ms ease;
+}
+
+.theme-toggle:hover {
+  background: rgba(255, 255, 255, 0.22);
+}
+
+/* ---------- level progress & data controls ---------- */
+
+.level-progress {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--ink-soft);
+  background: var(--tint);
+  border-radius: 999px;
+  padding: 3px 10px;
+  margin-left: auto;
+}
+
+.io-row {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-top: 10px;
+}
+
+.io-btn {
+  background: transparent;
+  border: 1.5px solid var(--line);
+  color: var(--ink-soft);
+  border-radius: 10px;
+  padding: 7px 14px;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.io-btn:hover {
+  border-color: var(--magenta);
+  color: var(--magenta);
+}
+
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  transform: translateX(-50%);
+  background: var(--surface-deep);
+  color: #fff;
+  border: 1px solid var(--gold);
+  border-radius: 12px;
+  padding: 11px 20px;
+  font-size: 14px;
+  font-weight: 700;
+  z-index: 50;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.28);
+  max-width: calc(100vw - 32px);
+  text-align: center;
+}
+
+.offline-note {
+  font-size: 12.5px;
+  color: var(--ink-soft);
+  text-align: center;
+  margin-top: 8px;
 }

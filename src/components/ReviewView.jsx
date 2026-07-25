@@ -1,12 +1,13 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { resolveKey } from "../data/index.js";
 import { shuffle } from "../lib/quiz.js";
 import { dueKeys, GRADES } from "../lib/srs.js";
-import { ProgressBar, SpeakButton } from "./shared.jsx";
+import { useKeyboard } from "../lib/useKeyboard.js";
+import { ProgressBar, SpeakButton, ThemeToggle } from "./shared.jsx";
 
 // Spaced-repetition session over every word you've unlocked by passing
 // lesson quizzes. Self-graded flashcards: Again / Hard / Good / Easy.
-export default function ReviewView({ store, gradeCard, goHome }) {
+export default function ReviewView({ store, gradeCard, goHome, theme, onToggleTheme }) {
   const [queue, setQueue] = useState(() => {
     const due = shuffle(dueKeys(store.srs)).slice(0, 30);
     return due.map((key) => ({ key, ...resolveKey(key) })).filter((c) => c.item);
@@ -27,28 +28,27 @@ export default function ReviewView({ store, gradeCard, goHome }) {
     setQueue((prev) => (g === "again" ? [...prev.slice(1), prev[0]] : prev.slice(1)));
   };
 
-  useEffect(() => {
-    const onKey = (e) => {
-      if (e.target.closest("input, textarea")) return;
-      if (e.key === " " || e.key === "Enter") {
-        if (e.target.tagName === "BUTTON") return;
-        e.preventDefault();
-        setFlipped((f) => !f);
-      } else if (flipped && ["1", "2", "3", "4"].includes(e.key)) {
-        grade(GRADES[Number(e.key) - 1].id);
-      }
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+  useKeyboard((e) => {
+    if (e.target.closest("input, textarea")) return;
+    if (e.key === " " || e.key === "Enter") {
+      if (e.target.tagName === "BUTTON") return;
+      e.preventDefault();
+      setFlipped((f) => !f);
+    } else if (flipped && ["1", "2", "3", "4"].includes(e.key)) {
+      grade(GRADES[Number(e.key) - 1].id);
+    }
   });
 
   return (
     <div>
       <header className="lesson-header" style={{ paddingBottom: 20 }}>
         <div className="lesson-header-inner">
-          <button className="link-btn" onClick={goHome}>
-            ‹ All lessons
-          </button>
+          <div className="header-top">
+            <button className="link-btn" onClick={goHome}>
+              ‹ All lessons
+            </button>
+            <ThemeToggle theme={theme} onToggle={onToggleTheme} />
+          </div>
           <div className="lesson-level-tag">Spaced repetition</div>
           <div className="shirorekha">
             <h2>उजळणी · Review</h2>

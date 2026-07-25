@@ -43,6 +43,32 @@
       href="https://fonts.googleapis.com/css2?family=Tiro+Devanagari+Marathi:ital@0;1&family=Karla:ital,wght@0,400;0,500;0,700;1,400&display=swap"
       rel="stylesheet"
     />
+
+    <!-- Installable PWA · works offline -->
+    <meta name="theme-color" content="#8E2A5C" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="मराठी शिका" />
+    <link rel="manifest" href="./manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="./icon-192.png" />
+
+    <!-- Resolve the theme before first paint so dark-mode users never see a light flash. -->
+    <script>
+      (function () {
+        try {
+          var t = localStorage.getItem("marathi-shika-theme");
+          if (t !== "light" && t !== "dark") {
+            t = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+          }
+          document.documentElement.setAttribute("data-theme", t);
+          if (t === "dark") {
+            var m = document.querySelector('meta[name="theme-color"]');
+            if (m) m.setAttribute("content", "#2a0e1d");
+          }
+        } catch (e) {
+          /* no storage — fall back to the CSS media query */
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

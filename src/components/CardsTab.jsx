@@ -1,5 +1,6 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { shuffle } from "../lib/quiz.js";
+import { useKeyboard } from "../lib/useKeyboard.js";
 import { SpeakButton } from "./shared.jsx";
 
 // Flashcards with two directions (read Marathi → recall meaning, or the
@@ -16,20 +17,16 @@ export default function CardsTab({ lesson }) {
     setIdx((i) => (i + d + deck.length) % deck.length);
   };
 
-  useEffect(() => {
-    const onKey = (e) => {
-      if (e.target.closest("input, textarea")) return;
-      if (e.key === "ArrowRight") go(1);
-      else if (e.key === "ArrowLeft") go(-1);
-      else if (e.key === " " || e.key === "Enter") {
-        if (e.target.tagName === "BUTTON") return;
-        e.preventDefault();
-        setFlipped((f) => !f);
-      }
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [deck.length]);
+  useKeyboard((e) => {
+    if (e.target.closest("input, textarea")) return;
+    if (e.key === "ArrowRight") go(1);
+    else if (e.key === "ArrowLeft") go(-1);
+    else if (e.key === " " || e.key === "Enter") {
+      if (e.target.tagName === "BUTTON") return;
+      e.preventDefault();
+      setFlipped((f) => !f);
+    }
+  });
 
   return (
     <div style={{ textAlign: "center" }}>

@@ -52,19 +52,24 @@ Passing a quiz adds that lesson's words to a global **उजळणी review dec
 
 Rounding it out:
 
+- 📲 **Installable and fully offline** — a service worker caches the app shell, assets, and fonts, so once you've opened it you can study on a plane or a tunnelled commute. Add it to your home screen and it runs like a native app.
+- 🌗 **Light and dark themes** — follows your system by default, with a manual toggle that sticks
+- 💾 **Back up & restore progress** — export everything to a JSON file and reload it on another device or after clearing site data (important, since there are no accounts)
 - 🔥 **Daily streak** tracking to build the habit
 - 🔍 **Course-wide search** by Marathi, transliteration, or English — effectively a built-in dictionary
 - ▶ **Continue** button that always resumes at your next unfinished lesson
 - ♪ **Text-to-speech** on every item, using the device's Marathi voice with a Hindi fallback
 - ⌨️ **Keyboard shortcuts** throughout — space to flip, arrows to navigate, `1`–`4` to answer or grade
-- 📱 Responsive, accessible (focus-visible states, `prefers-reduced-motion`), and offline-capable once loaded
+- 📱 Responsive and accessible (focus-visible states, `prefers-reduced-motion`, live-region toasts)
 
 ## Technical highlights
 
 - **Data-driven core.** The entire course is plain data — one file per level, each item a `{ mr, tr, en, note? }` object. Every feature (flashcards, all three quiz formats, search, the review deck) is generated from it, so adding content never touches feature code.
 - **Custom spaced-repetition scheduler** (`src/lib/srs.js`) — a compact SM-2-style algorithm with four grades and growing intervals, kept intentionally small and dependency-free.
 - **Diacritic-insensitive matching** via Unicode NFD normalization, shared by both typed-answer grading and course search, so learners are never punished for skipping accent marks.
-- **Zero runtime dependencies** beyond React itself — no UI kit, no state library. State and a tiny view router live in `App.jsx`; styling is a hand-written CSS design system.
+- **Zero runtime dependencies** beyond React itself — no UI kit, no state library, no PWA plugin. State and a tiny view router live in `App.jsx`; styling is a hand-written CSS design system.
+- **Hand-rolled service worker** with a strategy per request type: network-first for navigations (so the shell stays fresh), cache-first for content-hashed assets, stale-while-revalidate for cross-origin fonts.
+- **Themeable by design** — the palette is split into *role* tokens (`--accent-strong` for Devanagari text vs `--surface-deep` for headers), so dark mode lightens text without washing out the deep-plum surfaces the brand depends on.
 - **Portable static build** (`base: "./"`) that runs from any host — GitHub Pages, Netlify, or a file server — and is deployed by a GitHub Actions workflow.
 
 ## Project structure
@@ -72,10 +77,12 @@ Rounding it out:
 ```
 src/
   data/          one file per level — the entire curriculum as pure data
-  lib/           speech (TTS), storage, quiz builder, spaced-repetition scheduler
+  lib/           speech (TTS), storage/backup, quiz builder, SRS scheduler, theme
   components/    Home, LessonView, Learn/Cards/Quiz tabs, ReviewView, shared UI
   App.jsx        state, view routing, and progress persistence
-  styles.css     the CSS design system (paper / magenta / gold palette)
+  styles.css     the CSS design system (paper / magenta / gold, light + dark)
+public/          service worker, web manifest, icons, social card
+scripts/         curriculum integrity check (npm run check)
 ```
 
 ## Getting started
@@ -83,18 +90,23 @@ src/
 ```bash
 npm install
 npm run dev       # start the dev server
+npm run check     # validate the curriculum data
 npm run build     # production build → dist/
 npm run preview   # serve the production build locally
 ```
 
 Requires Node 18+.
 
+Adding content is just editing a file in `src/data/` — then `npm run check` verifies the additions (no duplicate entries, nothing that would break quiz generation or collide in the review deck) before you ship.
+
+> Note: the service worker is registered in production builds only, so `npm run dev` never serves you a stale bundle.
+
 ## Roadmap
 
 - Handwriting practice for Devanagari (stroke-order tracing)
 - Recorded native audio to replace synthesized speech
 - Dialogue lessons with role-play
-- Progress export / import
+- Per-lesson audio download for fully offline listening
 
 ## License
 
