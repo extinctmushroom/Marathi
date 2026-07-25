@@ -25,19 +25,10 @@ try {
     "</p></div>";
 }
 
-// A previous release shipped a caching service worker that broke reloads on
-// iOS Safari (first load fine, next load stalled on a bad cache). Nothing is
-// registered now, and any worker still installed from that release is torn
-// down here — belt and braces alongside the self-unregistering sw.js.
-if ("serviceWorker" in navigator) {
-  navigator.serviceWorker
-    .getRegistrations()
-    .then((registrations) => registrations.forEach((r) => r.unregister()))
-    .catch(() => {});
-  if (window.caches?.keys) {
-    caches
-      .keys()
-      .then((keys) => keys.forEach((key) => caches.delete(key)))
-      .catch(() => {});
-  }
-}
+// The service worker is registered by vite-plugin-pwa (see vite.config.js),
+// which injects registerSW.js. Nothing to do here.
+//
+// Note for future edits: do not add a getRegistrations()/unregister() sweep.
+// One lived here while an older, broken worker was being retired, and once a
+// real worker returned the two fought — the app tore down its own worker on
+// every start, so offline never stuck and caches thrashed.

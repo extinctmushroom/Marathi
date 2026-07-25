@@ -52,7 +52,7 @@ Passing a quiz adds that lesson's words to a global **उजळणी review dec
 
 Rounding it out:
 
-- 📲 **Installable** — a web manifest and icons, so you can add it to your home screen and launch it like an app
+- 📲 **Installable and works offline** — add it to your home screen and the whole course runs without a connection, so a commute or a flight is fair game
 - 🌗 **Light and dark themes** — follows your system by default, with a manual toggle that sticks
 - 💾 **Back up & restore progress** — export everything to a JSON file and reload it on another device or after clearing site data (important, since there are no accounts)
 - 🔥 **Daily streak** tracking to build the habit
@@ -69,6 +69,7 @@ Rounding it out:
 - **Diacritic-insensitive matching** via Unicode NFD normalization, shared by both typed-answer grading and course search, so learners are never punished for skipping accent marks.
 - **Zero runtime dependencies** beyond React itself — no UI kit, no state library. State and a tiny view router live in `App.jsx`; styling is a hand-written CSS design system.
 - **Fails loudly, never blankly** — static boot markup, a `nomodule` notice, a stalled-load watchdog, and an error boundary, so a broken load explains itself instead of showing an empty page.
+- **Offline via Workbox** (`vite-plugin-pwa`), precaching the shell and its content-hashed assets as one revisioned set. An earlier hand-rolled worker cached `index.html` independently, so after a deploy a stale shell could point at a bundle hash that no longer existed; the regression test now installs the worker, swaps a different build underneath it, and asserts the app still loads, updates, and works offline.
 - **Themeable by design** — the palette is split into *role* tokens (`--accent-strong` for Devanagari text vs `--surface-deep` for headers), so dark mode lightens text without washing out the deep-plum surfaces the brand depends on.
 - **Portable static build** (`base: "./"`) that runs from any host — GitHub Pages, Netlify, or a plain file server — deployed by a GitHub Actions workflow.
 
@@ -106,7 +107,7 @@ Adding content is just editing a file in `src/data/` — then `npm run check` ve
 - Handwriting practice for Devanagari (stroke-order tracing)
 - Recorded native audio to replace synthesized speech
 - Dialogue lessons with role-play
-- Offline support, reintroduced via a well-tested service worker library
+- Per-lesson recorded audio, cached for offline listening
 
 ## License
 

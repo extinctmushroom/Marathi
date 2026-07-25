@@ -1,4 +1,11 @@
-/* Self-destructing service worker.
+/* Self-destructing service worker — the emergency rollback.
+ *
+ * NOT deployed. Offline support is normally provided by vite-plugin-pwa,
+ * which generates dist/sw.js at build time. If that worker ever misbehaves
+ * in the wild, copy this file to public/sw.js and remove the VitePWA plugin
+ * from vite.config.js, then deploy: it overwrites the live worker at the
+ * same URL and tears it down. Deleting sw.js alone would not work, because
+ * browsers keep running a worker that is already installed.
  *
  * An earlier version of this file cached the app shell for offline use, but
  * it broke reloads on iOS Safari: the first visit worked, the next one was
