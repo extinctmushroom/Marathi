@@ -119,11 +119,28 @@
           if (!p) return;
           p.innerHTML =
             "The course didn't finish loading.<br><br>" +
-            "This is usually a browser shield, ad blocker, or extension blocking the script — " +
-            "try lowering shields for this site, or open it in another browser. " +
-            "A dropped connection mid-load can do it too, so a reload is worth a shot.";
+            "A reload usually fixes it. If it keeps happening, a browser shield, " +
+            "ad blocker, or content filter may be blocking the page's script.";
           p.style.color = "#a53939";
           p.style.lineHeight = "1.5";
+
+          // Details worth including in a bug report.
+          try {
+            var info = document.createElement("pre");
+            info.style.cssText =
+              "text-align:left;white-space:pre-wrap;word-break:break-word;background:#f4e9d2;" +
+              "border:1px solid #e5d7bc;border-radius:10px;padding:10px 12px;font-size:11px;" +
+              "color:#33203b;margin-top:16px";
+            var sw = "serviceWorker" in navigator ? (navigator.serviceWorker.controller ? "controlled" : "none") : "unsupported";
+            info.textContent =
+              "url: " + location.href + "\n" +
+              "serviceWorker: " + sw + "\n" +
+              "modules: " + ("noModule" in document.createElement("script") ? "supported" : "unsupported") + "\n" +
+              "ua: " + navigator.userAgent;
+            b.appendChild(info);
+          } catch (e) {
+            /* diagnostics are best-effort */
+          }
         }, 6000);
       })();
     </script>

@@ -1,0 +1,102 @@
+#!/usr/bin/env node
+/* Fold the built JS and CSS into index.html, producing a single file.
+ *
+ * Runs automatically after `vite build`. The motivation is reliability
+ * rather than size: a separate bundle request that fails (blocked, 404,
+ * dropped mid-flight) leaves the page loaded but the app dead. With one
+ * file there is nothing left to fail independently.
+ */
+
+import { readFile, writeFile, rm, readdir } from "fs/promises";
+import { existsSync } from "fs";
+import { join, dirname } from "path";
+import { fileURLToPath } from "url";
+
+const dist = join(dirname(fileURLToPath(import.meta.url)), "..", "dist");
+const htmlPath = join(dist, "index.html");
+
+if (!existsSync(htmlPath)) {
+  console.error("inline-build: dist/index.html not found — run vite build first");
+  process.exit(1);
+}
+
+let html = await readFile(htmlPath, "utf8");
+
+// A bundle can legally contain the characters "</script>", which would end
+// the inline tag early. Break the sequence without changing the code.
+const escapeForInline = (code) => code.replace(/<\/script>/gi, "<\\/script>");
+
+let inlinedJs = 0;
+let inlinedCss = 0;
+
+// Replacements are passed as functions on purpose: with a string, `$&`,
+// `$'` and friends are interpreted as substitution patterns, and minified
+// React genuinely contains "$&" — which silently splices the matched tag
+// into the middle of the bundle.
+// <script ... src="./assets/x.js"></script>  ->  inline <script> at end of body.
+//
+// Position matters: Vite puts the bundle in <head>, which is fine while it's
+// a deferred module script. Inlined as a classic script it would run before
+// #root exists, so React would have nothing to mount into. Move it to just
+// before </body> instead.
+const scriptTag = /<script\b[^>]*\bsrc=["']\.?\/?(assets\/[^"']+\.js)["'][^>]*><\/script>/gi;
+const deferred = [];
+for (const match of [...html.matchAll(scriptTag)]) {
+  const [tag, relPath] = match;
+  const code = escapeForInline(await readFile(join(dist, relPath), "utf8"));
+  html = html.replace(tag, () => "");
+  deferred.push(`<script>${code}</script>`);
+  inlinedJs++;
+}
+if (deferred.length) {
+  const body = deferred.join("\n");
+  if (!/<\/body>/i.test(html)) {
+    console.error("inline-build: no </body> to place the app script before");
+    process.exit(1);
+  }
+  html = html.replace(/<\/body>/i, () => `${body}\n</body>`);
+}
+
+// <link rel="stylesheet" href="./assets/x.css">  ->  <style>…</style>
+const styleTag = /<link\b[^>]*\bhref=["']\.?\/?(assets\/[^"']+\.css)["'][^>]*>/gi;
+for (const match of [...html.matchAll(styleTag)]) {
+  const [tag, relPath] = match;
+  const css = (await readFile(join(dist, relPath), "utf8")).replace(/<\/style>/gi, "<\\/style>");
+  html = html.replace(tag, () => `<style>${css}</style>`);
+  inlinedCss++;
+}
+
+// Preload hints for files that no longer exist would just 404.
+html = html.replace(/<link\b[^>]*rel=["']modulepreload["'][^>]*>/gi, "");
+
+// Nothing may still point at a bundle file, and no inlined code may carry a
+// literal </script> that would end its own tag early. Either would ship a
+// dead page, so fail the build rather than deploy it.
+if (new RegExp(scriptTag.source, "i").test(html) || new RegExp(styleTag.source, "i").test(html)) {
+  console.error("inline-build: a bundle reference survived inlining — refusing to write");
+  process.exit(1);
+}
+const inlineScripts = html.match(/<script>([\s\S]*?)<\/script>/gi) || [];
+if (inlineScripts.some((s) => s.slice(8, -9).includes("</script>"))) {
+  console.error("inline-build: inlined code contains a literal </script> — refusing to write");
+  process.exit(1);
+}
+
+await writeFile(htmlPath, html, "utf8");
+
+// Drop the now-unreferenced bundle files (icons and the social card live
+// at the dist root, so only assets/ goes).
+const assetsDir = join(dist, "assets");
+if (existsSync(assetsDir)) {
+  const leftovers = await readdir(assetsDir);
+  await rm(assetsDir, { recursive: true, force: true });
+  console.log(`inline-build: removed assets/ (${leftovers.length} file(s))`);
+}
+
+const kb = (Buffer.byteLength(html, "utf8") / 1024).toFixed(1);
+console.log(`inline-build: inlined ${inlinedJs} script(s), ${inlinedCss} stylesheet(s) → index.html ${kb} kB`);
+
+if (inlinedJs === 0) {
+  console.error("inline-build: no script was inlined — the app would not start");
+  process.exit(1);
+}

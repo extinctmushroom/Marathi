@@ -70,7 +70,7 @@ Rounding it out:
 - **Zero runtime dependencies** beyond React itself — no UI kit, no state library. State and a tiny view router live in `App.jsx`; styling is a hand-written CSS design system.
 - **Fails loudly, never blankly** — static boot markup, a `nomodule` notice, a stalled-load watchdog, and an error boundary, so a broken load explains itself instead of showing an empty page.
 - **Themeable by design** — the palette is split into *role* tokens (`--accent-strong` for Devanagari text vs `--surface-deep` for headers), so dark mode lightens text without washing out the deep-plum surfaces the brand depends on.
-- **Portable static build** (`base: "./"`) that runs from any host — GitHub Pages, Netlify, or a file server — and is deployed by a GitHub Actions workflow.
+- **Ships as one file.** The build inlines the JS and CSS into `index.html`, so the whole course is a single request. This started as a reliability fix — a separate bundle request that fails leaves the page loaded but the app dead — and it also means the build runs from anywhere, including straight off the filesystem.
 
 ## Project structure
 
@@ -82,7 +82,7 @@ src/
   App.jsx        state, view routing, and progress persistence
   styles.css     the CSS design system (paper / magenta / gold, light + dark)
 public/          service worker, web manifest, icons, social card
-scripts/         curriculum integrity check (npm run check)
+scripts/         curriculum integrity check, single-file build step
 ```
 
 ## Getting started
