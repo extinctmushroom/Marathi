@@ -131,43 +131,16 @@
       })();
     </script>
 
-    <!-- If React still hasn't mounted after a few seconds, the bundle was
-         blocked or never arrived. Say so instead of spinning forever. -->
+    <!-- If React still hasn't mounted after a few seconds, the bundle never
+         arrived or failed to run. Say so, with enough detail to act on. -->
     <script>
       (function () {
-        var mounted = function () {
+        setTimeout(function () {
           var b = document.getElementById("boot");
-          return !b || !document.body.contains(b);
-        };
-
-        // Some networks and devices strip large inline <script>/<style>
-        // blocks. The same code also ships as a file, so if the inline copy
-        // is missing or didn't run, try that route before giving up.
-        var loadFromFile = function (done) {
-          var style = document.getElementById("app-style");
-          if (!style || style.textContent.length < 1000) {
-            var link = document.createElement("link");
-            link.rel = "stylesheet";
-            link.href = "./assets/style.css";
-            document.head.appendChild(link);
-          }
-          var s = document.createElement("script");
-          s.src = "./assets/index.js";
-          s.onerror = function () {
-            window.__bootErrors.push("fallback file blocked too");
-            done();
-          };
-          s.onload = function () {
-            setTimeout(done, 400);
-          };
-          document.body.appendChild(s);
-        };
-
-        var report = function () {
-          var b = document.getElementById("boot");
-          if (!b || !document.body.contains(b)) return;
+          if (!b || !document.body.contains(b)) return; // app mounted — nothing to do
           var p = b.getElementsByTagName("p")[0];
           if (!p) return;
+
           p.innerHTML =
             "The course didn't finish loading.<br><br>" +
             "A reload usually fixes it. If it keeps happening, a browser shield, " +
@@ -182,80 +155,17 @@
               "text-align:left;white-space:pre-wrap;word-break:break-word;background:#f4e9d2;" +
               "border:1px solid #e5d7bc;border-radius:10px;padding:10px 12px;font-size:11px;" +
               "color:#33203b;margin-top:16px";
-            var sw = "serviceWorker" in navigator ? (navigator.serviceWorker.controller ? "controlled" : "none") : "unsupported";
-            var bundleEl = document.getElementById("app-bundle");
-            var styleEl = document.getElementById("app-style");
             info.textContent =
               "url: " + location.href + "\n" +
-              "serviceWorker: " + sw + "\n" +
-              "html bytes: " + document.documentElement.outerHTML.length + "\n" +
-              "bundle bytes: " + (bundleEl ? bundleEl.textContent.length : "MISSING") + "\n" +
-              "style bytes: " + (styleEl ? styleEl.textContent.length : "MISSING") + "\n" +
               "readyState: " + document.readyState + "\n" +
-              "errors: " + (window.__bootErrors.length ? window.__bootErrors.join(" | ") : "none") + "\n" +
+              "errors: " +
+              (window.__bootErrors.length ? window.__bootErrors.join(" | ") : "none") + "\n" +
               "ua: " + navigator.userAgent;
             b.appendChild(info);
           } catch (e) {
             /* diagnostics are best-effort */
           }
-        };
-
-        setTimeout(function () {
-          if (mounted()) return;
-
-          // Route 1: the code is in the page but didn't run — run it again.
-          var bundle = document.getElementById("app-bundle");
-          if (bundle && bundle.textContent && bundle.textContent.length > 1000) {
-            try {
-              (0, eval)(bundle.textContent);
-            } catch (err) {
-              window.__bootErrors.push("retry: " + (err && err.message ? err.message : err));
-            }
-            if (mounted()) return;
-          } else {
-            window.__bootErrors.push("inline bundle missing (stripped before delivery)");
-          }
-
-          // Route 2: load the same code as an ordinary file.
-          loadFromFile(function () {
-            if (mounted()) return;
-
-            // Route 3: identical code under a neutral extension, for filters
-            // that block by URL pattern rather than by content.
-            if (!window.fetch) return report();
-            fetch("./assets/app-style.txt")
-              .then(function (r) {
-                return r.ok ? r.text() : "";
-              })
-              .catch(function () {
-                return "";
-              })
-              .then(function (css) {
-                if (css) {
-                  var st = document.createElement("style");
-                  st.textContent = css;
-                  document.head.appendChild(st);
-                }
-                return fetch("./assets/app.txt");
-              })
-              .then(function (r) {
-                if (!r.ok) throw new Error("HTTP " + r.status);
-                return r.text();
-              })
-              .then(function (code) {
-                if (!code || code.length < 1000) throw new Error("empty payload");
-                (0, eval)(code);
-              })
-              .catch(function (err) {
-                window.__bootErrors.push("route3: " + (err && err.message ? err.message : err));
-              })
-              .then(function () {
-                setTimeout(function () {
-                  if (!mounted()) report();
-                }, 400);
-              });
-          });
-        }, 6000);
+        }, 8000);
       })();
     </script>
   </body>
