@@ -18,7 +18,7 @@
 
 Marathi is the language of ~83 million people — of Mumbai and Pune, of the saint-poets, of street-corner वडा पाव. Most learning resources treat it as an afterthought to Hindi. **मराठी शिका** is built for Marathi on its own terms: the retroflex ळ, the *dnya* of ज्ञ, the breathy म्ह/न्ह clusters, three grammatical genders, and the object-agreeing past tense that trips up every newcomer.
 
-It runs entirely in the browser. No accounts, no backend, no tracking — progress lives in `localStorage`, and once the page has loaded it works offline.
+It runs entirely in the browser. No accounts, no backend, no tracking — progress lives in `localStorage` and never leaves your device.
 
 ## The curriculum
 
@@ -52,7 +52,7 @@ Passing a quiz adds that lesson's words to a global **उजळणी review dec
 
 Rounding it out:
 
-- 📲 **Installable and fully offline** — a service worker caches the app shell, assets, and fonts, so once you've opened it you can study on a plane or a tunnelled commute. Add it to your home screen and it runs like a native app.
+- 📲 **Installable** — a web manifest and icons, so you can add it to your home screen and launch it like an app
 - 🌗 **Light and dark themes** — follows your system by default, with a manual toggle that sticks
 - 💾 **Back up & restore progress** — export everything to a JSON file and reload it on another device or after clearing site data (important, since there are no accounts)
 - 🔥 **Daily streak** tracking to build the habit
@@ -67,8 +67,8 @@ Rounding it out:
 - **Data-driven core.** The entire course is plain data — one file per level, each item a `{ mr, tr, en, note? }` object. Every feature (flashcards, all three quiz formats, search, the review deck) is generated from it, so adding content never touches feature code.
 - **Custom spaced-repetition scheduler** (`src/lib/srs.js`) — a compact SM-2-style algorithm with four grades and growing intervals, kept intentionally small and dependency-free.
 - **Diacritic-insensitive matching** via Unicode NFD normalization, shared by both typed-answer grading and course search, so learners are never punished for skipping accent marks.
-- **Zero runtime dependencies** beyond React itself — no UI kit, no state library, no PWA plugin. State and a tiny view router live in `App.jsx`; styling is a hand-written CSS design system.
-- **Hand-rolled service worker** with a strategy per request type: network-first for navigations (so the shell stays fresh), cache-first for content-hashed assets, stale-while-revalidate for cross-origin fonts.
+- **Zero runtime dependencies** beyond React itself — no UI kit, no state library. State and a tiny view router live in `App.jsx`; styling is a hand-written CSS design system.
+- **Fails loudly, never blankly** — static boot markup, a `nomodule` notice, a stalled-load watchdog, and an error boundary, so a broken load explains itself instead of showing an empty page.
 - **Themeable by design** — the palette is split into *role* tokens (`--accent-strong` for Devanagari text vs `--surface-deep` for headers), so dark mode lightens text without washing out the deep-plum surfaces the brand depends on.
 - **Portable static build** (`base: "./"`) that runs from any host — GitHub Pages, Netlify, or a file server — and is deployed by a GitHub Actions workflow.
 
@@ -106,7 +106,7 @@ Adding content is just editing a file in `src/data/` — then `npm run check` ve
 - Handwriting practice for Devanagari (stroke-order tracing)
 - Recorded native audio to replace synthesized speech
 - Dialogue lessons with role-play
-- Per-lesson audio download for fully offline listening
+- Offline support, reintroduced via a well-tested service worker library
 
 ## License
 

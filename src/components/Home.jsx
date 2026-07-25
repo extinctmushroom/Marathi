@@ -212,7 +212,7 @@ export default function Home({
               />
             </div>
             <p className="offline-note">
-              Add to your home screen to study offline — no signup, no account.
+              Add it to your home screen for one-tap practice — no signup, no account.
             </p>
           </>
         )}

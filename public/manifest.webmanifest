@@ -1,7 +1,7 @@
 {
   "name": "मराठी शिका · Learn Marathi",
   "short_name": "मराठी शिका",
-  "description": "A complete interactive Marathi course — from the Devanagari script to real conversation. Works offline.",
+  "description": "A complete interactive Marathi course — from the Devanagari script to real conversation.",
   "lang": "mr",
   "start_url": "./",
   "scope": "./",

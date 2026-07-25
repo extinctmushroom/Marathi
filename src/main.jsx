@@ -25,13 +25,19 @@ try {
     "</p></div>";
 }
 
-// Register the service worker so the course works offline once visited.
-// Production only — in dev it would just serve stale bundles.
-if (import.meta.env.PROD && "serviceWorker" in navigator) {
-  window.addEventListener("load", () => {
-    // Resolve against the document so it works from any subpath (e.g. /Marathi/).
-    navigator.serviceWorker.register(new URL("sw.js", document.baseURI)).catch(() => {
-      /* offline support is a bonus; never break the app over it */
-    });
-  });
+// A previous release shipped a caching service worker that broke reloads on
+// iOS Safari (first load fine, next load stalled on a bad cache). Nothing is
+// registered now, and any worker still installed from that release is torn
+// down here — belt and braces alongside the self-unregistering sw.js.
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker
+    .getRegistrations()
+    .then((registrations) => registrations.forEach((r) => r.unregister()))
+    .catch(() => {});
+  if (window.caches?.keys) {
+    caches
+      .keys()
+      .then((keys) => keys.forEach((key) => caches.delete(key)))
+      .catch(() => {});
+  }
 }
