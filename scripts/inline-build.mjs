@@ -45,7 +45,9 @@ for (const match of [...html.matchAll(scriptTag)]) {
   const [tag, relPath] = match;
   const code = escapeForInline(await readFile(join(dist, relPath), "utf8"));
   html = html.replace(tag, () => "");
-  deferred.push(`<script>${code}</script>`);
+  // The id lets the loading screen find this code and re-run it if the
+  // first execution didn't take.
+  deferred.push(`<script id="app-bundle">${code}</script>`);
   inlinedJs++;
 }
 if (deferred.length) {
@@ -76,9 +78,15 @@ if (new RegExp(scriptTag.source, "i").test(html) || new RegExp(styleTag.source, 
   console.error("inline-build: a bundle reference survived inlining — refusing to write");
   process.exit(1);
 }
-const inlineScripts = html.match(/<script>([\s\S]*?)<\/script>/gi) || [];
-if (inlineScripts.some((s) => s.slice(8, -9).includes("</script>"))) {
+const inlineScripts = [...html.matchAll(/<script\b(?![^>]*\bsrc=)[^>]*>([\s\S]*?)<\/script>/gi)];
+if (inlineScripts.some((m) => m[1].includes("</script>"))) {
   console.error("inline-build: inlined code contains a literal </script> — refusing to write");
+  process.exit(1);
+}
+// A "<!--" inside a script switches the HTML tokenizer into escaped mode,
+// where a later "<script" can stop </script> from closing the element.
+if (inlineScripts.some((m) => m[1].includes("<!--") && /<script/i.test(m[1]))) {
+  console.error("inline-build: inlined code mixes <!-- and <script — refusing to write");
   process.exit(1);
 }
 

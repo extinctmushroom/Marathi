@@ -51,6 +51,29 @@
     <link rel="manifest" href="./manifest.webmanifest" />
     <link rel="apple-touch-icon" href="./icon-192.png" />
 
+    <!-- Capture anything that goes wrong before the app mounts, so the
+         loading screen can report it instead of just sitting there. -->
+    <script>
+      window.__bootErrors = [];
+      window.addEventListener(
+        "error",
+        function (e) {
+          try {
+            window.__bootErrors.push(
+              (e.message || "error") + (e.lineno ? " (line " + e.lineno + ")" : "")
+            );
+          } catch (_) {}
+        },
+        true
+      );
+      window.addEventListener("unhandledrejection", function (e) {
+        try {
+          var r = e.reason;
+          window.__bootErrors.push("promise: " + ((r && r.message) || String(r)));
+        } catch (_) {}
+      });
+    </script>
+
     <!-- Resolve the theme before first paint so dark-mode users never see a light flash. -->
     <script>
       (function () {
@@ -115,6 +138,21 @@
         setTimeout(function () {
           var b = document.getElementById("boot");
           if (!b || !document.body.contains(b)) return; // app mounted — nothing to do
+
+          // The app's code is inlined in this page. If it's present but
+          // didn't run, try running it once more before giving up — that
+          // alone fixes a load that was skipped or interrupted.
+          var bundle = document.getElementById("app-bundle");
+          if (bundle && bundle.textContent && bundle.textContent.length > 1000) {
+            try {
+              (0, eval)(bundle.textContent);
+            } catch (err) {
+              window.__bootErrors.push("retry: " + (err && err.message ? err.message : err));
+            }
+            b = document.getElementById("boot");
+            if (!b || !document.body.contains(b)) return; // recovered
+          }
+
           var p = b.getElementsByTagName("p")[0];
           if (!p) return;
           p.innerHTML =
@@ -132,10 +170,14 @@
               "border:1px solid #e5d7bc;border-radius:10px;padding:10px 12px;font-size:11px;" +
               "color:#33203b;margin-top:16px";
             var sw = "serviceWorker" in navigator ? (navigator.serviceWorker.controller ? "controlled" : "none") : "unsupported";
+            var bundleEl = document.getElementById("app-bundle");
             info.textContent =
               "url: " + location.href + "\n" +
               "serviceWorker: " + sw + "\n" +
-              "modules: " + ("noModule" in document.createElement("script") ? "supported" : "unsupported") + "\n" +
+              "html bytes: " + document.documentElement.outerHTML.length + "\n" +
+              "bundle bytes: " + (bundleEl ? bundleEl.textContent.length : "MISSING") + "\n" +
+              "readyState: " + document.readyState + "\n" +
+              "errors: " + (window.__bootErrors.length ? window.__bootErrors.join(" | ") : "none") + "\n" +
               "ua: " + navigator.userAgent;
             b.appendChild(info);
           } catch (e) {
