@@ -7,7 +7,7 @@
  * file there is nothing left to fail independently.
  */
 
-import { readFile, writeFile, rm, readdir } from "fs/promises";
+import { readFile, writeFile, readdir } from "fs/promises";
 import { existsSync } from "fs";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
@@ -64,7 +64,7 @@ const styleTag = /<link\b[^>]*\bhref=["']\.?\/?(assets\/[^"']+\.css)["'][^>]*>/g
 for (const match of [...html.matchAll(styleTag)]) {
   const [tag, relPath] = match;
   const css = (await readFile(join(dist, relPath), "utf8")).replace(/<\/style>/gi, "<\\/style>");
-  html = html.replace(tag, () => `<style>${css}</style>`);
+  html = html.replace(tag, () => `<style id="app-style">${css}</style>`);
   inlinedCss++;
 }
 
@@ -92,13 +92,14 @@ if (inlineScripts.some((m) => m[1].includes("<!--") && /<script/i.test(m[1]))) {
 
 await writeFile(htmlPath, html, "utf8");
 
-// Drop the now-unreferenced bundle files (icons and the social card live
-// at the dist root, so only assets/ goes).
+// The files in assets/ are deliberately kept even though nothing links to
+// them. Some networks and devices strip large inline <script>/<style>
+// blocks; when that happens the loading screen falls back to loading these
+// as ordinary files. Two delivery routes, one of which usually survives.
 const assetsDir = join(dist, "assets");
 if (existsSync(assetsDir)) {
-  const leftovers = await readdir(assetsDir);
-  await rm(assetsDir, { recursive: true, force: true });
-  console.log(`inline-build: removed assets/ (${leftovers.length} file(s))`);
+  const kept = await readdir(assetsDir);
+  console.log(`inline-build: kept assets/ as a fallback (${kept.join(", ")})`);
 }
 
 const kb = (Buffer.byteLength(html, "utf8") / 1024).toFixed(1);
