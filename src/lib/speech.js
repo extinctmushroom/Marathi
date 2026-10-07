@@ -12,6 +12,7 @@ let cachedVoice = null;
 let voicesReady = false;
 
 let clips = null; // Set of clip keys, once the manifest has loaded
+let clipRev = ""; // identifies the voice the clips were made with
 let manifestLoad = null; // in-flight manifest request
 let audio = null; // the one <audio> element, reused for every clip
 let latest = 0; // id of the newest speak() call; older async work gives up
@@ -32,7 +33,7 @@ export function ttsAvailable() {
 }
 
 // Resolves to null (and is retried by the next call) on a network error, or to
-// an empty set when there is simply no audio — a fork, or `npm run dev`.
+// an empty manifest when there is simply no audio — a fork, or `npm run dev`.
 async function fetchManifest() {
   let res;
   try {
@@ -41,19 +42,23 @@ async function fetchManifest() {
     return null;
   }
   try {
-    const manifest = res.ok ? await res.json() : null;
-    return new Set(Array.isArray(manifest && manifest.keys) ? manifest.keys : []);
+    return (res.ok && (await res.json())) || {};
   } catch {
-    return new Set();
+    return {};
   }
 }
 
 function loadManifest() {
   if (clips) return Promise.resolve();
   if (!manifestLoad) {
-    manifestLoad = fetchManifest().then((found) => {
+    manifestLoad = fetchManifest().then((manifest) => {
       manifestLoad = null;
-      if (found) clips = found;
+      if (!manifest) return;
+      clips = new Set(Array.isArray(manifest.keys) ? manifest.keys : []);
+      // Clip names hash only the text, so the voice goes in the query string:
+      // after a voice change the service worker misses its cache instead of
+      // replaying clips in the old voice.
+      clipRev = audioKey(`${manifest.provider}|${manifest.voice}|${manifest.rate}`);
     });
   }
   return manifestLoad;
@@ -90,7 +95,7 @@ function speakWithDevice(clean, rate) {
 
 function playClip(key, clean, rate, id) {
   if (!audio) audio = new Audio();
-  const url = `audio/${key}.mp3`;
+  const url = `audio/${key}.mp3?v=${clipRev}`;
   let fell = false; // a failed clip reports through both onerror and play()
   const fallBack = () => {
     if (fell || id !== latest) return;
