@@ -58,7 +58,7 @@ Rounding it out:
 - 🔥 **Daily streak** tracking to build the habit
 - 🔍 **Course-wide search** by Marathi, transliteration, or English — effectively a built-in dictionary
 - ▶ **Continue** button that always resumes at your next unfinished lesson
-- ♪ **Text-to-speech** on every item, using the device's Marathi voice with a Hindi fallback
+- ♪ **Text-to-speech** on every item — natural neural Marathi (mr-IN) clips when audio is generated, otherwise the device's Marathi voice
 - ⌨️ **Keyboard shortcuts** throughout — space to flip, arrows to navigate, `1`–`4` to answer or grade
 - 📱 Responsive and accessible (focus-visible states, `prefers-reduced-motion`, live-region toasts)
 
@@ -78,12 +78,12 @@ Rounding it out:
 ```
 src/
   data/          one file per level — the entire curriculum as pure data
-  lib/           speech (TTS), storage/backup, quiz builder, SRS scheduler, theme
+  lib/           speech (TTS) and clip naming, storage/backup, quiz builder, SRS scheduler, theme
   components/    Home, LessonView, Learn/Cards/Quiz tabs, ReviewView, shared UI
   App.jsx        state, view routing, and progress persistence
   styles.css     the CSS design system (paper / magenta / gold, light + dark)
 public/          service worker, web manifest, icons, social card
-scripts/         curriculum integrity check (npm run check)
+scripts/         curriculum integrity check (npm run check), speech clip generator (npm run audio)
 ```
 
 ## Getting started
@@ -92,6 +92,7 @@ scripts/         curriculum integrity check (npm run check)
 npm install
 npm run dev       # start the dev server
 npm run check     # validate the curriculum data
+npm run audio     # generate neural voice clips (optional — see Audio voices)
 npm run build     # production build → dist/
 npm run preview   # serve the production build locally
 ```
@@ -101,6 +102,29 @@ Requires Node 18+.
 Adding content is just editing a file in `src/data/` — then `npm run check` verifies the additions (no duplicate entries, nothing that would break quiz generation or collide in the review deck) before you ship.
 
 > Note: the service worker is registered in production builds only, so `npm run dev` never serves you a stale bundle.
+
+## Audio voices
+
+The ♪ buttons can play real Marathi (mr-IN) neural voices instead of whatever the device provides. There's no backend, so the text-to-speech API key never reaches the browser: `npm run audio` (`scripts/generate-audio.mjs`) synthesizes every spoken string once at build time into `public/audio/<hash>.mp3` plus a `manifest.json`, and the app plays those clips. Clips are git-ignored build output, generated in CI before `npm run build`, and cached by the service worker as they're played so they work offline too.
+
+Without credentials nothing breaks: the script warns and exits 0, and the app speaks with the device's own Marathi voice. It never substitutes another language's voice; if the device has no Marathi voice, the browser is simply asked for `mr-IN`.
+
+Pick one provider and add its credentials under **Settings → Secrets and variables → Actions** in your fork:
+
+| Provider | Secrets | Variables | Default voice |
+| --- | --- | --- | --- |
+| Google Cloud Text-to-Speech | `GOOGLE_TTS_API_KEY` | | `mr-IN-Wavenet-A` |
+| Azure Speech | `AZURE_SPEECH_KEY` | `AZURE_SPEECH_REGION` (e.g. `centralindia`) | `mr-IN-AarohiNeural` |
+
+Optional variables: `TTS_PROVIDER` (`google` or `azure`; by default Google is used if its key is set, else Azure) and `TTS_VOICE` (e.g. `mr-IN-Wavenet-B` or `mr-IN-ManoharNeural` for a male voice). Google's higher-tier Chirp 3 HD voices work via `TTS_VOICE`, but they ignore speaking rate, so the slower learner pace is lost. Changing the provider or voice regenerates every clip; otherwise only new or edited text is synthesized.
+
+Both providers have a monthly free tier at the time of writing (check current pricing), and the whole course is only a few thousand characters of text. To see exactly how many clips and characters a run would use — without any network access or credentials:
+
+```bash
+npm run audio -- --dry-run
+```
+
+To try it locally, export the same variables before running it (for example `GOOGLE_TTS_API_KEY=… npm run audio`), then `npm run build`.
 
 ## Roadmap
 

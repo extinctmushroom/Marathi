@@ -174,8 +174,8 @@ export default function Home({
         {!query.trim() && (
           <>
             <p className="footer-note">
-              Your progress is saved on this device. ♪ buttons read words aloud (voice quality
-              depends on your device's Marathi/Hindi voices).
+              Your progress is saved on this device. ♪ buttons read words aloud — in a natural
+              Marathi voice where available, otherwise your device's own Marathi voice.
             </p>
             <div className="io-row">
               <button className="io-btn" onClick={exportProgress}>
