@@ -41,6 +41,31 @@ export default defineConfig({
               cacheableResponse: { statuses: [0, 200] },
             },
           },
+          {
+            // Speech clips are left out of the precache (hundreds of files that
+            // most learners will only partly use). Cache each one the first
+            // time it is played, then serve it offline. rangeRequests lets the
+            // complete cached copy answer the Range requests <audio> makes —
+            // Safari refuses media that ignores them. Clip URLs carry the voice
+            // (?v=), so a voice change fetches fresh clips rather than these.
+            urlPattern: ({ url }) =>
+              url.origin === self.location.origin && /\/audio\/[0-9a-f]+\.mp3$/.test(url.pathname),
+            handler: "CacheFirst",
+            options: {
+              cacheName: "marathi-audio",
+              expiration: { maxEntries: 5000, maxAgeSeconds: 60 * 60 * 24 * 60 },
+              cacheableResponse: { statuses: [0, 200] },
+              rangeRequests: true,
+            },
+          },
+          {
+            // Which clips exist, and in which voice. Network first so a new
+            // voice or new text takes effect on the next load; cache offline.
+            urlPattern: ({ url }) =>
+              url.origin === self.location.origin && url.pathname.endsWith("/audio/manifest.json"),
+            handler: "NetworkFirst",
+            options: { cacheName: "marathi-audio-manifest", networkTimeoutSeconds: 3 },
+          },
         ],
       },
     }),
