@@ -187,7 +187,10 @@ async function synthesize(settings, text) {
       return audio;
     }
 
-    const detail = redact((await res.text().catch(() => "")).slice(0, 300).trim());
+    const body = (await res.text().catch(() => "")).trim();
+    // Auth errors print in full: the ErrorInfo reason and project are what tell
+    // a blocked key from a disabled API.
+    const detail = redact(res.status === 401 || res.status === 403 ? body : body.slice(0, 300));
     if (res.status === 401 || res.status === 403) {
       throw new FatalError(
         provider === "google"
