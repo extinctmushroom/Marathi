@@ -1,15 +1,24 @@
 #!/usr/bin/env node
-/* Pre-generate Marathi speech clips — run with `npm run audio`.
+/* Pre-generate the primary Marathi speech clips — run with `npm run audio`.
  *
  * There's no backend, so the Text-to-Speech API key can't live in the app.
- * Instead this script (run locally or in CI) synthesizes every string the app
- * can speak with a Google Cloud or Azure neural mr-IN voice and writes the
- * results to public/audio/<key>.mp3 plus a manifest.json listing what exists.
- * The browser (src/lib/speech.js) plays a clip when its key is in the
- * manifest and otherwise falls back to the device's own Marathi voice.
+ * Instead this script (run by the "Generate voice clips" workflow, which
+ * commits the result, or locally) synthesizes every string the app can speak
+ * with a Google Cloud or Azure neural mr-IN voice and writes the results to
+ * public/audio/<key>.mp3 plus a manifest.json listing what exists. Those are
+ * the primary clips. The browser (src/lib/speech.js) plays a primary clip when
+ * its key is in that manifest, else the backup clip in public/audio-backup
+ * (an open-source voice made by scripts/generate-audio-local.py; this script
+ * never touches it), else the device's own Marathi voice.
  *
  *   npm run audio                  generate whatever is missing
  *   npm run audio -- --dry-run     count clips and characters, no network
+ *   npm run audio -- --require-credentials
+ *                                  fail (exit 1) instead of skipping when the
+ *                                  credentials are missing (used by the workflow)
+ *   node scripts/generate-audio.mjs --list
+ *                                  print every clip as JSON [{key, text}]
+ *                                  (used by scripts/generate-audio-local.py)
  *
  * Environment (empty values count as unset):
  *   TTS_PROVIDER         google | azure. Default: google if GOOGLE_TTS_API_KEY
@@ -19,9 +28,17 @@
  *   GOOGLE_TTS_API_KEY   Google Cloud Text-to-Speech API key
  *   AZURE_SPEECH_KEY / AZURE_SPEECH_REGION   Azure Speech resource
  *
- * With no credentials it prints a warning and exits 0, so local builds and
- * forks keep working on the device-voice fallback. Re-runs are incremental;
- * changing provider, voice or speaking rate regenerates everything.
+ * With no credentials it prints a warning and exits 0 without touching
+ * public/audio (or, with --require-credentials, exits 1), so local builds and
+ * forks keep the committed clips. The
+ * deploy workflow doesn't run this script at all; it ships the committed
+ * clips.
+ *
+ * With credentials this script owns public/audio. Re-runs are incremental: the
+ * committed manifest records Google, the default voice and rate below, so a
+ * run with GOOGLE_TTS_API_KEY only synthesizes new or edited text (check with
+ * --dry-run). Changing provider, voice or speaking rate regenerates everything
+ * and removes the clips it replaces.
  */
 
 import { mkdir, readdir, readFile, rename, rm, writeFile } from "node:fs/promises";
@@ -37,7 +54,9 @@ const MANIFEST_PATH = OUT_DIR + "manifest.json";
 // documents no rate/pitch control for it), and a slower pace matters for
 // learners — so the default is WaveNet, the best tier that honours it.
 // Wavenet-A is female; -B is the male alternative. A Chirp3-HD voice set via
-// TTS_VOICE still works; it is just sent without a rate.
+// TTS_VOICE still works; it is just sent without a rate. The committed clips in
+// public/audio were made with these two defaults, so changing either one
+// regenerates every clip on the next run.
 const GOOGLE_DEFAULT_VOICE = "mr-IN-Wavenet-A";
 const GOOGLE_RATE = 0.9;
 // Azure's female neural voice; mr-IN-ManoharNeural is the male alternative.
@@ -163,6 +182,18 @@ const requests = {
   },
 };
 
+// An error response, redacted, pretty-printed when it is JSON, and in full
+// (capped only so that a runaway HTML error page can't flood the log).
+function fullErrorBody(body) {
+  let text = redact(body);
+  try {
+    text = JSON.stringify(JSON.parse(text), null, 2);
+  } catch {
+    /* not JSON: keep as is */
+  }
+  return text.length > 20_000 ? text.slice(0, 20_000) + "\n… (truncated)" : text;
+}
+
 const backoff = (attempt) => Math.min(30_000, 1000 * 2 ** (attempt - 1)) * (0.5 + Math.random() / 2);
 
 async function synthesize(settings, text) {
@@ -187,12 +218,16 @@ async function synthesize(settings, text) {
       return audio;
     }
 
-    const detail = redact((await res.text().catch(() => "")).slice(0, 300).trim());
+    const body = (await res.text().catch(() => "")).trim();
+    const detail = redact(body.slice(0, 300));
     if (res.status === 401 || res.status === 403) {
+      // The whole body, not a prefix: Google puts the reason (for example
+      // API_KEY_SERVICE_BLOCKED) and the project in the ErrorInfo details at
+      // the end, which is what a 403 is debugged from.
       throw new FatalError(
         provider === "google"
-          ? `Google rejected the API key (HTTP ${res.status}). Check GOOGLE_TTS_API_KEY, that the Cloud Text-to-Speech API is enabled for its project, and that any key restrictions allow it.\n${detail}`
-          : `Azure rejected the credentials (HTTP ${res.status}). Check AZURE_SPEECH_KEY and that AZURE_SPEECH_REGION is the region the key was issued in.\n${detail}`
+          ? `Google rejected the API key (HTTP ${res.status}). Check GOOGLE_TTS_API_KEY, that the Cloud Text-to-Speech API is enabled for its project, and that any key restrictions allow it.\n${fullErrorBody(body)}`
+          : `Azure rejected the credentials (HTTP ${res.status}). Check AZURE_SPEECH_KEY and that AZURE_SPEECH_REGION is the region the key was issued in.\n${fullErrorBody(body)}`
       );
     }
     const transient = res.status === 429 || res.status >= 500;
@@ -240,8 +275,20 @@ const writeManifest = (settings, keys) =>
 async function main() {
   const args = process.argv.slice(2);
   const dryRun = args.includes("--dry-run");
-  const unknown = args.filter((a) => a !== "--dry-run");
-  if (unknown.length) throw new FatalError(`unknown argument: ${unknown.join(" ")} (only --dry-run is supported)`);
+  const list = args.includes("--list");
+  const requireCredentials = args.includes("--require-credentials");
+  const unknown = args.filter((a) => a !== "--dry-run" && a !== "--list" && a !== "--require-credentials");
+  if (unknown.length) {
+    throw new FatalError(`unknown argument: ${unknown.join(" ")} (supported: --dry-run, --list, --require-credentials)`);
+  }
+
+  // JSON only on stdout, no settings or credentials involved: the Python
+  // generator reads this instead of recomputing keys or cleaning text itself.
+  if (list) {
+    const { clips } = collectClips();
+    console.log(JSON.stringify([...clips].map(([key, text]) => ({ key, text }))));
+    return;
+  }
 
   const settings = resolveSettings();
   if (!dryRun && !settings.ready) {
@@ -251,8 +298,14 @@ async function main() {
         : settings.provider === "google"
           ? "GOOGLE_TTS_API_KEY"
           : "GOOGLE_TTS_API_KEY, or AZURE_SPEECH_KEY and AZURE_SPEECH_REGION";
+    if (requireCredentials) {
+      throw new FatalError(
+        `No text-to-speech credentials (need ${need}). In GitHub, set them under ` +
+          "Settings → Secrets and variables → Actions, then run again. See README → Audio voices."
+      );
+    }
     console.warn(`⚠ No text-to-speech credentials (need ${need}) — skipping audio generation.`);
-    console.warn("  The app will use the device's Marathi voice. See README → Audio voices.");
+    console.warn("  public/audio is left as it is, so the committed clips keep working. See README → Audio voices.");
     return;
   }
 
@@ -286,21 +339,32 @@ async function main() {
     console.log(`existing audio is from ${prev.provider} / ${prev.voice}${prev.rate != null ? ` / ${prev.rate}` : ""} — all of it will be regenerated`);
   }
   console.log(`already on disk: ${cached.length} · to generate: ${todo.length} (${todoChars.toLocaleString("en-US")} characters)`);
-  if (stale.size) console.log(`${dryRun ? "would remove" : "removing"} ${stale.size} stale clip(s)`);
-  if (dryRun) return;
+  if (dryRun) {
+    if (stale.size) console.log(`would remove ${stale.size} stale clip(s)`);
+    return;
+  }
 
+  // Synthesize one clip before deleting or rewriting anything, so a rejected
+  // key or an exhausted quota cannot cost the clips that are already there.
+  const first = todo.length ? await synthesize(settings, clips.get(todo[0])) : null;
+
+  if (stale.size) console.log(`removing ${stale.size} stale clip(s)`);
   await mkdir(OUT_DIR, { recursive: true });
   for (const f of files) {
     const orphan = f.endsWith(".mp3") ? stale.has(f.slice(0, -4)) : f.endsWith(".tmp");
     if (orphan) await rm(OUT_DIR + f, { force: true });
   }
-  // Record the settings before spending any quota, so that if this run is
-  // interrupted the next one can tell which clips are reusable.
+  // Record the settings before spending the rest of the quota, so that if this
+  // run is interrupted the next one can tell which clips are reusable.
   await writeManifest(settings, cached);
 
   const done = new Set(cached);
+  if (first) {
+    await writeAtomic(`${OUT_DIR}${todo[0]}.mp3`, first);
+    done.add(todo[0]);
+  }
   let failure = null;
-  let next = 0;
+  let next = first ? 1 : 0;
   async function lane() {
     while (!failure && next < todo.length) {
       const key = todo[next++];

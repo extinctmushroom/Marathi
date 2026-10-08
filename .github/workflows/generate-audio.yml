@@ -1,0 +1,72 @@
+name: Generate voice clips
+
+# Updates the primary voice clips (Google Cloud Text-to-Speech, committed in
+# public/audio) and commits them to the branch you ran it on. Run it by hand
+# (Actions -> Generate voice clips -> Run workflow), and only when the course
+# text changes: it reuses every committed clip whose provider, voice and rate
+# match, so only new or edited text is synthesized. The deploy workflow never
+# calls a cloud API (it ships whatever is committed), so the Cloud
+# Text-to-Speech API can stay disabled for the key's Google Cloud project in
+# between; enable it just for a run.
+#
+# This writes and commits public/audio only. The open-source backup voice in
+# public/audio-backup is made offline by scripts/generate-audio-local.py.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write # commit the clips
+  actions: write # start the deploy: pushes made with GITHUB_TOKEN don't trigger workflows
+
+concurrency:
+  group: generate-audio
+  cancel-in-progress: false
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # The generator needs only Node's built-ins, so nothing is installed:
+      # no third-party install scripts run in a job holding a write token and
+      # the TTS key.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      # Incremental against the committed manifest (google / mr-IN-Wavenet-A /
+      # 0.9). Setting TTS_PROVIDER or TTS_VOICE to something else regenerates
+      # every clip. Empty values count as unset. --require-credentials makes
+      # missing credentials for the chosen provider fail the run.
+      - run: npm run audio -- --require-credentials
+        env:
+          GOOGLE_TTS_API_KEY: ${{ secrets.GOOGLE_TTS_API_KEY }}
+          AZURE_SPEECH_KEY: ${{ secrets.AZURE_SPEECH_KEY }}
+          AZURE_SPEECH_REGION: ${{ vars.AZURE_SPEECH_REGION }}
+          TTS_PROVIDER: ${{ vars.TTS_PROVIDER }}
+          TTS_VOICE: ${{ vars.TTS_VOICE }}
+
+      - name: Commit the clips
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BRANCH: ${{ github.ref_name }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          if [ -z "$(git status --porcelain -- public/audio)" ]; then
+            echo "public/audio is already up to date; nothing to commit."
+            exit 0
+          fi
+          label=$(node -e 'const m = JSON.parse(require("fs").readFileSync("public/audio/manifest.json", "utf8")); console.log(`${m.provider} / ${m.voice}`)')
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A public/audio
+          git commit -m "Regenerate voice clips ($label)"
+          git push origin "HEAD:refs/heads/$BRANCH"
+          # A push made with GITHUB_TOKEN does not start the deploy workflow
+          # (only workflow_dispatch is exempt from that rule), so start it here.
+          if [ "$BRANCH" = "$DEFAULT_BRANCH" ]; then
+            gh workflow run deploy.yml --ref "$BRANCH"
+          else
+            echo "Pushed to $BRANCH. Merge it into $DEFAULT_BRANCH to deploy the new clips."
+          fi

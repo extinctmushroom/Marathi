@@ -6,9 +6,16 @@
  * duplicate ids, missing fields, duplicate Marathi entries within a lesson
  * (which would collide as spaced-repetition keys), lessons too small to
  * build a 4-option question, and quiz generation itself misbehaving.
+ *
+ * It also warns (without failing) about spoken items that have no speech clip
+ * in either public/audio/manifest.json (primary voice) or
+ * public/audio-backup/manifest.json (backup voice), so new content shows up
+ * as missing audio, and counts items that only one of the two sets covers.
  */
 
+import { readFileSync } from "node:fs";
 import { ALL_LESSONS, ALL_LEVELS, TOTAL_ITEMS, itemKey, resolveKey } from "../src/data/index.js";
+import { audioKey, cleanSpeechText } from "../src/lib/audioKey.js";
 import { buildQuiz, typedAnswers } from "../src/lib/quiz.js";
 
 let errors = 0;
@@ -69,6 +76,57 @@ for (const lesson of ALL_LESSONS) {
 // Typed answers should be reachable without diacritics.
 if (!typedAnswers({ tr: "bābā / vaḍīl" }).includes("vadil")) {
   fail("typedAnswers: alternatives (a / b) not accepted");
+}
+
+// Spoken items without a clip. Not an error: the app plays the primary clip
+// (public/audio), else the backup clip (public/audio-backup), else the device's
+// Marathi voice, so this only nudges you to regenerate audio after editing the
+// lessons.
+{
+  const sets = ["audio", "audio-backup"].map((dir) => {
+    try {
+      const manifest = JSON.parse(readFileSync(new URL(`../public/${dir}/manifest.json`, import.meta.url), "utf8"));
+      if (Array.isArray(manifest.keys)) return new Set(manifest.keys);
+    } catch {
+      /* reported below */
+    }
+    console.warn(`⚠ public/${dir}/manifest.json is missing or unreadable — that set of speech clips is empty.`);
+    return new Set();
+  });
+  const [primary, backup] = sets;
+  const missing = []; // in neither set
+  const backupOnly = []; // in the backup set only
+  const primaryOnly = []; // in the primary set only
+  const seen = new Set();
+  for (const lesson of ALL_LESSONS) {
+    for (const item of lesson.items) {
+      // Items without Marathi text are already reported above.
+      if (typeof item.mr !== "string" || !cleanSpeechText(item.mr)) continue;
+      const key = audioKey(item.mr);
+      if (seen.has(key)) continue;
+      seen.add(key);
+      if (primary.has(key)) {
+        if (!backup.has(key)) primaryOnly.push(key);
+        continue;
+      }
+      (backup.has(key) ? backupOnly : missing).push(`${lesson.id}: ${item.mr}`);
+    }
+  }
+  if (missing.length) {
+    console.warn(`⚠ ${missing.length} spoken item(s) have no audio clip in either set (the app will use the device voice):`);
+    for (const line of missing.slice(0, 15)) console.warn("    " + line);
+    if (missing.length > 15) console.warn(`    …and ${missing.length - 15} more`);
+    console.warn("  Primary (public/audio): run Actions → Generate voice clips, or `npm run audio` with a cloud key.");
+    console.warn("  Backup (public/audio-backup): python scripts/generate-audio-local.py. See README → Audio voices.");
+  }
+  if (backupOnly.length) {
+    console.log(`ℹ ${backupOnly.length} spoken item(s) use the backup voice only; Generate voice clips adds them to public/audio.`);
+  }
+  if (primaryOnly.length) {
+    console.log(
+      `ℹ ${primaryOnly.length} spoken item(s) have no backup clip in public/audio-backup; run python scripts/generate-audio-local.py.`
+    );
+  }
 }
 
 console.log(
