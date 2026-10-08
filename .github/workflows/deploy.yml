@@ -24,24 +24,10 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      # Speech clips are build output. Keep them between runs so only new or
-      # changed text is synthesized; the generator itself decides what is
-      # still valid (provider, voice and rate changes regenerate everything).
-      - uses: actions/cache@v4
-        with:
-          path: public/audio
-          key: marathi-audio-${{ vars.TTS_PROVIDER }}-${{ vars.TTS_VOICE }}-${{ hashFiles('src/data/**', 'scripts/generate-audio.mjs') }}
-          restore-keys: |
-            marathi-audio-${{ vars.TTS_PROVIDER }}-${{ vars.TTS_VOICE }}-
-      # With no credentials configured this only warns, and the app falls back
-      # to the device's own Marathi voice. Empty values count as unset.
-      - run: npm run audio
-        env:
-          GOOGLE_TTS_API_KEY: ${{ secrets.GOOGLE_TTS_API_KEY }}
-          AZURE_SPEECH_KEY: ${{ secrets.AZURE_SPEECH_KEY }}
-          AZURE_SPEECH_REGION: ${{ vars.AZURE_SPEECH_REGION }}
-          TTS_PROVIDER: ${{ vars.TTS_PROVIDER }}
-          TTS_VOICE: ${{ vars.TTS_VOICE }}
+      # No cloud calls here: the committed speech clips, public/audio (primary,
+      # Google) and public/audio-backup (open-source backup), ship as they are.
+      # After a course text change, the "Generate voice clips" workflow updates
+      # the primary set and scripts/generate-audio-local.py the backup set.
       - run: npm run build
       - uses: actions/upload-pages-artifact@v3
         with:

@@ -2,6 +2,8 @@
 // (Node, writes public/audio/<key>.mp3) and src/lib/speech.js (browser, plays
 // it), so the two must agree byte-for-byte: keep this file dependency-free
 // and don't change either function without regenerating every clip.
+// scripts/generate-audio-local.py never computes keys itself: it reads them
+// from `node scripts/generate-audio.mjs --list`.
 
 // Strip parenthetical asides — they're glosses for the reader, not words to
 // say aloud — and surrounding whitespace.

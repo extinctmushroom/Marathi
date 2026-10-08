@@ -42,14 +42,15 @@ export default defineConfig({
             },
           },
           {
-            // Speech clips are left out of the precache (hundreds of files that
-            // most learners will only partly use). Cache each one the first
-            // time it is played, then serve it offline. rangeRequests lets the
-            // complete cached copy answer the Range requests <audio> makes —
-            // Safari refuses media that ignores them. Clip URLs carry the voice
-            // (?v=), so a voice change fetches fresh clips rather than these.
+            // Speech clips, primary (audio/) and backup (audio-backup/), are
+            // left out of the precache (hundreds of files that most learners
+            // will only partly use). Cache each one the first time it is
+            // played, then serve it offline. rangeRequests lets the complete
+            // cached copy answer the Range requests <audio> makes — Safari
+            // refuses media that ignores them. Clip URLs carry the voice (?v=),
+            // so a voice change fetches fresh clips rather than these.
             urlPattern: ({ url }) =>
-              url.origin === self.location.origin && /\/audio\/[0-9a-f]+\.mp3$/.test(url.pathname),
+              url.origin === self.location.origin && /\/audio(-backup)?\/[0-9a-f]+\.mp3$/.test(url.pathname),
             handler: "CacheFirst",
             options: {
               cacheName: "marathi-audio",
@@ -59,10 +60,11 @@ export default defineConfig({
             },
           },
           {
-            // Which clips exist, and in which voice. Network first so a new
-            // voice or new text takes effect on the next load; cache offline.
+            // Which clips exist in each set, and in which voice. Network first
+            // so a new voice or new text takes effect on the next load; cache
+            // offline.
             urlPattern: ({ url }) =>
-              url.origin === self.location.origin && url.pathname.endsWith("/audio/manifest.json"),
+              url.origin === self.location.origin && /\/audio(-backup)?\/manifest\.json$/.test(url.pathname),
             handler: "NetworkFirst",
             options: { cacheName: "marathi-audio-manifest", networkTimeoutSeconds: 3 },
           },

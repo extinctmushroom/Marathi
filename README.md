@@ -58,7 +58,7 @@ Rounding it out:
 - 🔥 **Daily streak** tracking to build the habit
 - 🔍 **Course-wide search** by Marathi, transliteration, or English — effectively a built-in dictionary
 - ▶ **Continue** button that always resumes at your next unfinished lesson
-- ♪ **Text-to-speech** on every item — natural neural Marathi (mr-IN) clips when audio is generated, otherwise the device's Marathi voice
+- ♪ **Text-to-speech** on every item — Marathi voice clips bundled with the app (a Google Cloud WaveNet voice, backed up by the open-source AI4Bharat Indic-TTS voice), no keys needed at runtime; the device's Marathi voice covers anything without a clip
 - ⌨️ **Keyboard shortcuts** throughout — space to flip, arrows to navigate, `1`–`4` to answer or grade
 - 📱 Responsive and accessible (focus-visible states, `prefers-reduced-motion`, live-region toasts)
 
@@ -82,8 +82,8 @@ src/
   components/    Home, LessonView, Learn/Cards/Quiz tabs, ReviewView, shared UI
   App.jsx        state, view routing, and progress persistence
   styles.css     the CSS design system (paper / magenta / gold, light + dark)
-public/          service worker, web manifest, icons, social card
-scripts/         curriculum integrity check (npm run check), speech clip generator (npm run audio)
+public/          web manifest, icons, social card, speech clips in audio/ (primary) and audio-backup/ (backup)
+scripts/         curriculum integrity check (npm run check), speech clip generators (npm run audio: primary cloud voice; generate-audio-local.py: open-source backup)
 ```
 
 ## Getting started
@@ -92,7 +92,7 @@ scripts/         curriculum integrity check (npm run check), speech clip generat
 npm install
 npm run dev       # start the dev server
 npm run check     # validate the curriculum data
-npm run audio     # generate neural voice clips (optional — see Audio voices)
+npm run audio     # update the primary voice clips; needs a cloud key (see Audio voices)
 npm run build     # production build → dist/
 npm run preview   # serve the production build locally
 ```
@@ -105,26 +105,57 @@ Adding content is just editing a file in `src/data/` — then `npm run check` ve
 
 ## Audio voices
 
-The ♪ buttons can play real Marathi (mr-IN) neural voices instead of whatever the device provides. There's no backend, so the text-to-speech API key never reaches the browser: `npm run audio` (`scripts/generate-audio.mjs`) synthesizes every spoken string once at build time into `public/audio/<hash>.mp3` plus a `manifest.json`, and the app plays those clips. Clips are git-ignored build output, generated in CI before `npm run build`, and cached by the service worker as they're played so they work offline too.
+The ♪ buttons play real Marathi speech that ships with the app: no account or API key is involved at runtime or when the site deploys. For each text the app uses the first of three tiers that has it:
 
-Without credentials nothing breaks: the script warns and exits 0, and the app speaks with the device's own Marathi voice. It never substitutes another language's voice; if the device has no Marathi voice, the browser is simply asked for `mr-IN`.
+1. **Primary: Google Cloud Text-to-Speech** (`mr-IN-Wavenet-A`, a female WaveNet voice, at 0.9× speed for learners), committed as `public/audio/<hash>.mp3` plus `public/audio/manifest.json`, about 5 MB for the whole course.
+2. **Backup: AI4Bharat Indic-TTS**, an open-source model (FastPitch + HiFi-GAN, Marathi *female* speaker), committed as `public/audio-backup/<hash>.mp3` plus its own `manifest.json`, about 3.5 MB. It plays when a text has no primary clip, and also when a primary clip fails to load or play.
+3. **The device's own Marathi voice** (Web Speech API, `mr-IN`) for anything with no clip in either set. The app never substitutes another language's voice; if the device has no Marathi voice, the browser is simply asked for `mr-IN`.
 
-Pick one provider and add its credentials under **Settings → Secrets and variables → Actions** in your fork:
+Both sets name a clip by a hash of its text (`src/lib/audioKey.js`), so the same file name means the same text in either folder. Each manifest records the voice its clips were made with, and that goes into the clip URL (`?v=…`), so a voice change is never masked by an old cached clip. The app loads both manifests in parallel at startup, and the service worker caches each clip the first time it is played, so clips you have heard work offline too.
+
+`npm run check` warns about spoken items that have no clip in either set, and notes items that only one set covers.
+
+### Regenerating the primary (Google) clips
+
+The Google clips are committed, and **the deploy workflow never calls a cloud API**, so the key is only used when you start this manual workflow:
+
+1. Make sure the `GOOGLE_TTS_API_KEY` secret is set under **Settings → Secrets and variables → Actions**, and that the Cloud Text-to-Speech API is enabled for the key's project (Google Cloud console → **APIs & Services → Enabled APIs & services → Cloud Text-to-Speech API**; enable it again if you disabled it after the last run).
+2. Run **Actions → Generate voice clips → Run workflow** on the branch you deploy from. It runs `npm run audio`, which keeps every committed clip (same provider, voice and rate as `public/audio/manifest.json`) and synthesizes only new or edited text, commits `public/audio` to that branch as `github-actions[bot]`, and starts the deploy when that branch is `main`. Without credentials for the provider it uses, it fails immediately with an error saying so.
+3. Disable the Cloud Text-to-Speech API for that project again (same page → **Disable API**) until the next text change. Nothing else needs it. (Google Cloud API keys themselves cannot be switched off; restricting the key to that API is a good extra safeguard.)
+
+Run it only when the course text changes. To see what a run would do, with no network access or credentials (until the text changes it reports `to generate: 0`):
+
+```bash
+npm run audio -- --dry-run
+```
+
+`GOOGLE_TTS_API_KEY=… npm run audio` does the same locally in your working tree. With no credentials, `npm run audio` only prints a warning and never changes any file.
+
+To use a different cloud voice instead, set these under **Settings → Secrets and variables → Actions** before running the workflow:
 
 | Provider | Secrets | Variables | Default voice |
 | --- | --- | --- | --- |
 | Google Cloud Text-to-Speech | `GOOGLE_TTS_API_KEY` | | `mr-IN-Wavenet-A` |
 | Azure Speech | `AZURE_SPEECH_KEY` | `AZURE_SPEECH_REGION` (e.g. `centralindia`) | `mr-IN-AarohiNeural` |
 
-Optional variables: `TTS_PROVIDER` (`google` or `azure`; by default Google is used if its key is set, else Azure) and `TTS_VOICE` (e.g. `mr-IN-Wavenet-B` or `mr-IN-ManoharNeural` for a male voice). Google's higher-tier Chirp 3 HD voices work via `TTS_VOICE`, but they ignore speaking rate, so the slower learner pace is lost. Changing the provider or voice regenerates every clip; otherwise only new or edited text is synthesized.
+Optional variables: `TTS_PROVIDER` (`google` or `azure`; by default Google is used if its key is set, else Azure) and `TTS_VOICE` (e.g. `mr-IN-Wavenet-B` or `mr-IN-ManoharNeural` for a male voice). Leave both unset to keep the committed voice: any change of provider, voice or rate regenerates every primary clip. Google's higher-tier Chirp 3 HD voices work via `TTS_VOICE`, but they ignore speaking rate, so the slower learner pace is lost. If you switch, update the voice credit in the footer of `src/components/Home.jsx` too. Both providers have a monthly free tier at the time of writing (check current pricing), and the whole course is only a few thousand characters of text.
 
-Both providers have a monthly free tier at the time of writing (check current pricing), and the whole course is only a few thousand characters of text. To see exactly how many clips and characters a run would use — without any network access or credentials:
+### Regenerating the backup (open-source) clips
+
+No key needed: [`scripts/generate-audio-local.py`](scripts/generate-audio-local.py) runs the model on your own machine and writes `public/audio-backup` (pass `--out-dir` to write elsewhere). Set up the Python environment described at the top of that file once (Python 3.10, CPU-only PyTorch, Coqui `TTS`, and the 1.5 GB `mr.zip` checkpoint), then:
 
 ```bash
-npm run audio -- --dry-run
+python scripts/generate-audio-local.py            # only the missing clips; commit public/audio-backup afterwards
+python scripts/generate-audio-local.py --speaker male   # the male voice instead (regenerates everything)
+python scripts/generate-audio-local.py --force    # redo every clip
 ```
 
-To try it locally, export the same variables before running it (for example `GOOGLE_TTS_API_KEY=… npm run audio`), then `npm run build`.
+After adding or editing lessons, run it too: the Generate voice clips workflow only updates `public/audio`, and `npm run check` says how many spoken items have no backup clip. It reads the clip list and file names from `node scripts/generate-audio.mjs --list`, so it never recomputes them. A full run takes about three minutes on four CPU cores. The script also trims silence, levels every clip to the same volume, spells digits as Marathi number words, and reports anything that looks wrong.
+
+### Credits and licences
+
+- **Primary voice:** synthesized with [Google Cloud Text-to-Speech](https://cloud.google.com/text-to-speech). Its output needs no attribution; the footer names it only so learners know what they are hearing.
+- **Backup voice:** [AI4Bharat/Indic-TTS](https://github.com/AI4Bharat/Indic-TTS) (Gokul Karthik Kumar et al., *Towards Building Text-To-Speech Systems for the Next Billion Users*, ICASSP 2023). The repository's `LICENSE.txt` is the **MIT License, Copyright (c) 2023 AI4Bhārat**, and its model metadata (`inference/triton_server/ulca_models/indo-aryan.json`) lists the Marathi models as MIT too. They were trained on the Indic TTS database built by IIT Madras's SMT Lab. The backup clips are credited in the app's footer and in `public/audio-backup/manifest.json`; if you redistribute them commercially, check the current terms of the checkpoints and that database yourself.
 
 ## Roadmap
 

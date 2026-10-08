@@ -174,8 +174,9 @@ export default function Home({
         {!query.trim() && (
           <>
             <p className="footer-note">
-              Your progress is saved on this device. ♪ buttons read words aloud — in a natural
-              Marathi voice where available, otherwise your device's own Marathi voice.
+              Your progress is saved on this device. ♪ buttons read words aloud with Marathi voice
+              clips from Google Cloud Text-to-Speech, backed up by the open-source AI4Bharat
+              Indic-TTS model (MIT), or your device's own Marathi voice for anything without a clip.
             </p>
             <div className="io-row">
               <button className="io-btn" onClick={exportProgress}>
